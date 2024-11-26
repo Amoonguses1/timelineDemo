@@ -1,0 +1,19 @@
+services:
+  timeline_demo_app:
+    build:
+      context: .
+      dockerfile: ./docker/app.Dockerfile
+    image: timeline_demo_app
+    container_name: timeline_demo_app
+    tty: true
+    ports:
+      - 80:80
+    volumes:
+      - ./:/go/src/app
+    networks:
+      - timeline_demo
+
+networks:
+  timeline_demo:
+    name: timeline_demo
+    driver: bridge
