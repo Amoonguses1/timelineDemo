@@ -1,13 +1,19 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"sync"
+	"time"
 	usecases "timelineDemo/internal/app/usecases"
 	"timelineDemo/internal/domain/entities"
+)
+
+const (
+	expiredTime = 5 * time.Second
 )
 
 func CreatePost(w http.ResponseWriter, r *http.Request, mu *sync.Mutex, usersChan *map[string]chan entities.TimelineEvent, createPostUsecase usecases.CreatePostUsecaseInterface) {
@@ -87,5 +93,70 @@ func SseTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUserAndFo
 			mu.Unlock()
 			return
 		}
+	}
+}
+
+func LongPollingTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUserAndFolloweePostsUsecaseInterface, mu *sync.Mutex, usersChan *map[string]chan entities.TimelineEvent) {
+	userID := r.PathValue("id")
+	var body longPollingTimelineRequestBody
+
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&body)
+	if err != nil {
+		http.Error(w, fmt.Sprintln("Request body was invalid."), http.StatusBadRequest)
+		return
+	}
+
+	switch body.PollingEventType {
+	case TimelineAccessed:
+		handleTimelineAccess(w, userID, u)
+	case PollingRequest:
+		handlePollingRequest(w, r, userID, usersChan, mu)
+	default:
+		http.Error(w, fmt.Sprintln("Unknown event type"), http.StatusBadRequest)
+	}
+}
+
+func handleTimelineAccess(w http.ResponseWriter, userID string, u usecases.GetUserAndFolloweePostsUsecaseInterface) {
+	posts, err := u.GetUserAndFolloweePosts(userID)
+	if err != nil {
+		http.Error(w, "Could not get posts", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+
+	encoder := json.NewEncoder(w)
+	if err := encoder.Encode(&posts); err != nil {
+		http.Error(w, "Could not encode response.", http.StatusInternalServerError)
+	}
+}
+
+func handlePollingRequest(w http.ResponseWriter, r *http.Request, userID string, usersChan *map[string]chan entities.TimelineEvent, mu *sync.Mutex) {
+	ctx, cancel := context.WithTimeout(r.Context(), expiredTime)
+	defer cancel()
+
+	mu.Lock()
+	if _, exists := (*usersChan)[userID]; !exists {
+		(*usersChan)[userID] = make(chan entities.TimelineEvent, 1)
+	}
+	userChan := (*usersChan)[userID]
+	mu.Unlock()
+
+	select {
+	case event := <-userChan:
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+
+		encoder := json.NewEncoder(w)
+		if err := encoder.Encode(event.Posts); err != nil {
+			http.Error(w, "Could not encode response.", http.StatusInternalServerError)
+		}
+	case <-ctx.Done():
+		mu.Lock()
+		delete(*usersChan, userID)
+		mu.Unlock()
+		w.WriteHeader(http.StatusNoContent)
 	}
 }

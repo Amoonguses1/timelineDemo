@@ -31,6 +31,10 @@ func main() {
 		handlers.SseTimeline(w, r, getUserAndFolloweePostsUsecase, &mu, &userChannels)
 	})
 
+	http.HandleFunc("GET /api/{id}/polling", func(w http.ResponseWriter, r *http.Request) {
+		handlers.LongPollingTimeline(w, r, getUserAndFolloweePostsUsecase, &mu, &userChannels)
+	})
+
 	log.Println("Starting server...")
 	err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 	if err != nil {
