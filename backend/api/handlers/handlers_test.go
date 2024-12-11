@@ -105,13 +105,15 @@ func (s *HandlersTestSuite) TestSseTimeline() {
 			line := scanner.Text()
 			if strings.HasPrefix(line, "data:") {
 				jsonData := strings.TrimPrefix(line, "data: ")
-				var newPosts []entities.Post
+				var timelineEvent entities.TimelineEvent
 
-				err := json.Unmarshal([]byte(jsonData), &newPosts)
+				err := json.Unmarshal([]byte(jsonData), &timelineEvent)
 				if err != nil {
 					s.T().Errorf("Failed to decode JSON: %v", err)
 				}
-				posts = append(posts, newPosts...)
+				for _, post := range timelineEvent.Posts {
+					posts = append(posts, *post)
+				}
 			}
 		}
 
@@ -134,19 +136,19 @@ func (s *HandlersTestSuite) TestLongPollingTimeline() {
 		{
 			name:         "get posts",
 			userID:       user1,
-			body:         `{"polling_event_type": 1}`,
+			body:         fmt.Sprintf(`{"polling_event_type": "%s"}`, TimelineAccessed),
 			expectedCode: http.StatusOK,
 		},
 		{
 			name:         "get posts already posted and posts posted during timeline access",
 			userID:       user1,
-			body:         `{"polling_event_type": 2}`,
+			body:         fmt.Sprintf(`{"polling_event_type": "%s"}`, PollingRequest),
 			expectedCode: http.StatusOK,
 		},
 		{
 			name:         "no new posts",
 			userID:       user1,
-			body:         `{"polling_event_type": 2}`,
+			body:         fmt.Sprintf(`{"polling_event_type": "%s"}`, PollingRequest),
 			expectedCode: http.StatusNoContent,
 		},
 	}

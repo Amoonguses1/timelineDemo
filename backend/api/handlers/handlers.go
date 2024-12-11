@@ -79,13 +79,13 @@ func SseTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUserAndFo
 	for {
 		select {
 		case event := <-userChan:
-			jsonData, err := json.Marshal(event.Posts)
+			jsonData, err := json.Marshal(event)
 			if err != nil {
 				log.Println(err)
 				return
 			}
 
-			fmt.Fprintf(w, "event: %d\ndata: %s\n\n", event.EventType, jsonData)
+			fmt.Fprintf(w, "data: %s\n\n", jsonData)
 			flusher.Flush()
 		case <-r.Context().Done():
 			mu.Lock()
@@ -103,6 +103,7 @@ func LongPollingTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetU
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&body)
 	if err != nil {
+        log.Println("decode error")
 		http.Error(w, fmt.Sprintln("Request body was invalid."), http.StatusBadRequest)
 		return
 	}

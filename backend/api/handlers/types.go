@@ -7,16 +7,13 @@ type createPostRequestBody struct {
 	Text   string `json:"text"`
 }
 
-type PollingEventType int
-
 const (
-	_ PollingEventType = iota
-	TimelineAccessed
-	PollingRequest
+	TimelineAccessed = "TimelineAccessed"
+	PollingRequest   = "PollingRequest"
 )
 
 // longPollingTimelineRequestBody is the type of the "LongPollingTimeline"
 // endpoint request body.
 type longPollingTimelineRequestBody struct {
-	PollingEventType `json:"polling_event_type"`
+	PollingEventType string `json:"polling_event_type"`
 }

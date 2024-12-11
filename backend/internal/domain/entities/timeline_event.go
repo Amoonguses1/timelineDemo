@@ -3,13 +3,12 @@ package entities
 type EventType int
 
 const (
-	_ EventType = iota
-	TimelineAccessed
-	PostCreated
-	PostDeleted
+	TimelineAccessed = "TimelineAccessed"
+	PostCreated      = "PostCreated"
+	PostDeleted      = "PostDeleted"
 )
 
 type TimelineEvent struct {
-	EventType EventType
+	EventType string
 	Posts     []*Post
 }
