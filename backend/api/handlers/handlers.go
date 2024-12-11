@@ -125,7 +125,7 @@ func handleTimelineAccess(w http.ResponseWriter, userID string, u usecases.GetUs
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
+	w.WriteHeader(http.StatusOK)
 
 	encoder := json.NewEncoder(w)
 	if err := encoder.Encode(&posts); err != nil {
@@ -147,7 +147,7 @@ func handlePollingRequest(w http.ResponseWriter, r *http.Request, userID string,
 	select {
 	case event := <-userChan:
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
+		w.WriteHeader(http.StatusOK)
 
 		encoder := json.NewEncoder(w)
 		if err := encoder.Encode(event.Posts); err != nil {
