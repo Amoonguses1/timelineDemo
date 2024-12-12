@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
-	usecases "timelineDemo/internal/app/usecases"
-	"timelineDemo/internal/domain/entities"
+	usecases "timelineDemo-old/internal/app/usecases"
+	"timelineDemo-old/internal/domain/entities"
 )
 
 const (
@@ -54,48 +54,6 @@ func CreatePost(w http.ResponseWriter, r *http.Request, mu *sync.Mutex, usersCha
 	}
 }
 
-func SseTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUserAndFolloweePostsUsecaseInterface, mu *sync.Mutex, usersChan *map[string]chan entities.TimelineEvent) {
-	userID := r.PathValue("id")
-	posts, err := u.GetUserAndFolloweePosts(userID)
-	if err != nil {
-		http.Error(w, fmt.Sprintln("Could not get posts"), http.StatusInternalServerError)
-		return
-	}
-
-	mu.Lock()
-	if _, exists := (*usersChan)[userID]; !exists {
-		(*usersChan)[userID] = make(chan entities.TimelineEvent, 1)
-	}
-	userChan := (*usersChan)[userID]
-	mu.Unlock()
-
-	userChan <- entities.TimelineEvent{EventType: entities.TimelineAccessed, Posts: posts}
-
-	flusher, _ := w.(http.Flusher)
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-
-	for {
-		select {
-		case event := <-userChan:
-			jsonData, err := json.Marshal(event)
-			if err != nil {
-				log.Println(err)
-				return
-			}
-
-			fmt.Fprintf(w, "data: %s\n\n", jsonData)
-			flusher.Flush()
-		case <-r.Context().Done():
-			mu.Lock()
-			delete(*usersChan, userID)
-			mu.Unlock()
-			return
-		}
-	}
-}
-
 func LongPollingTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUserAndFolloweePostsUsecaseInterface, mu *sync.Mutex, usersChan *map[string]chan entities.TimelineEvent) {
 	userID := r.PathValue("id")
 	var body longPollingTimelineRequestBody
@@ -103,7 +61,7 @@ func LongPollingTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetU
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&body)
 	if err != nil {
-        log.Println("decode error")
+		log.Println("decode error")
 		http.Error(w, fmt.Sprintln("Request body was invalid."), http.StatusBadRequest)
 		return
 	}

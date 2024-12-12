@@ -15,3 +15,6 @@ down:
 
 stop:
 	docker-compose stop
+
+reload_nginx_config:
+	docker-compose exec nginx nginx -s reload
