@@ -130,26 +130,44 @@ func (s *HandlersTestSuite) TestLongPollingTimeline() {
 	tests := []struct {
 		name         string
 		userID       string
-		body         string
+		queryKey     string
+		query        string
 		expectedCode int
 	}{
 		{
 			name:         "get posts",
 			userID:       user1,
-			body:         fmt.Sprintf(`{"polling_event_type": "%s"}`, TimelineAccessed),
+			queryKey:     "event_type",
+			query:        TimelineAccessed,
 			expectedCode: http.StatusOK,
 		},
 		{
 			name:         "get posts already posted and posts posted during timeline access",
 			userID:       user1,
-			body:         fmt.Sprintf(`{"polling_event_type": "%s"}`, PollingRequest),
+			queryKey:     "event_type",
+			query:        PollingRequest,
 			expectedCode: http.StatusOK,
 		},
 		{
 			name:         "no new posts",
 			userID:       user1,
-			body:         fmt.Sprintf(`{"polling_event_type": "%s"}`, PollingRequest),
+			queryKey:     "event_type",
+			query:        PollingRequest,
 			expectedCode: http.StatusNoContent,
+		},
+		{
+			name:         "Invalid event type",
+			userID:       user1,
+			queryKey:     "event_type",
+			query:        "hoge",
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name:         "Invalid query",
+			userID:       user1,
+			queryKey:     "",
+			query:        "hoge",
+			expectedCode: http.StatusBadRequest,
 		},
 	}
 
@@ -158,8 +176,11 @@ func (s *HandlersTestSuite) TestLongPollingTimeline() {
 		req := httptest.NewRequest(
 			"GET",
 			"/api/{id}/polling",
-			strings.NewReader(test.body),
+			strings.NewReader(""),
 		)
+		query := req.URL.Query()
+		query.Add(test.queryKey, test.query)
+		req.URL.RawQuery = query.Encode()
 		req.SetPathValue("id", test.userID)
 
 		var wg sync.WaitGroup

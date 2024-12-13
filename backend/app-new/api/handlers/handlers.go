@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	expiredTime = 5 * time.Second
+	expiredTime   = 5 * time.Second
+	queryEventKey = "event_type"
 )
 
 func CreatePost(w http.ResponseWriter, r *http.Request, mu *sync.Mutex, usersChan *map[string]chan entities.TimelineEvent, createPostUsecase usecases.CreatePostUsecaseInterface) {
@@ -101,17 +102,14 @@ func SseTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUserAndFo
 
 func LongPollingTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUserAndFolloweePostsUsecaseInterface, mu *sync.Mutex, usersChan *map[string]chan entities.TimelineEvent) {
 	userID := r.PathValue("id")
-	var body longPollingTimelineRequestBody
-
-	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&body)
-	if err != nil {
-		log.Println("decode error")
-		http.Error(w, fmt.Sprintln("Request body was invalid."), http.StatusBadRequest)
+	queryParams := r.URL.Query()
+	eventType, ok := queryParams[queryEventKey]
+	if !ok || len(eventType) != 1 {
+		http.Error(w, fmt.Sprintln("Invalid or missing event type query parameter"), http.StatusBadRequest)
 		return
 	}
 
-	switch body.PollingEventType {
+	switch eventType[0] {
 	case TimelineAccessed:
 		handleTimelineAccess(w, userID, u)
 	case PollingRequest:

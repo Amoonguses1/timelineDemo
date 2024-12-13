@@ -11,9 +11,3 @@ const (
 	TimelineAccessed = "TimelineAccessed"
 	PollingRequest   = "PollingRequest"
 )
-
-// longPollingTimelineRequestBody is the type of the "LongPollingTimeline"
-// endpoint request body.
-type longPollingTimelineRequestBody struct {
-	PollingEventType string `json:"polling_event_type"`
-}
