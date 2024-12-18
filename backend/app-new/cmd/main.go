@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sync"
 	"timelineDemo/api/handlers"
+	"timelineDemo/api/middlewares"
 	"timelineDemo/internal/app/usecases"
 	"timelineDemo/internal/domain/entities"
 	"timelineDemo/internal/infrastructure/persistence"
@@ -23,20 +24,24 @@ func main() {
 	var userChannels = make(map[string]chan entities.TimelineEvent)
 	var mu sync.Mutex
 
-	http.HandleFunc("POST /api/posts", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("POST /api/posts", func(w http.ResponseWriter, r *http.Request) {
 		handlers.CreatePost(w, r, &mu, &userChannels, createPostUsecase)
 	})
 
-	http.HandleFunc("GET /api/{id}/sse", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/{id}/sse", func(w http.ResponseWriter, r *http.Request) {
 		handlers.SseTimeline(w, r, getUserAndFolloweePostsUsecase, &mu, &userChannels)
 	})
 
-	http.HandleFunc("GET /api/{id}/polling", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/{id}/polling", func(w http.ResponseWriter, r *http.Request) {
 		handlers.LongPollingTimeline(w, r, getUserAndFolloweePostsUsecase, &mu, &userChannels)
 	})
 
+	handlersWithCORS := middlewares.CORS(mux)
+
 	log.Println("Starting server...")
-	err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+	err := http.ListenAndServe(fmt.Sprintf(":%d", port), handlersWithCORS)
 	if err != nil {
 		log.Fatalln(err)
 	}
