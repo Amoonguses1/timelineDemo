@@ -10,7 +10,7 @@ type ApiError = {
 };
 
 export const getInitialTimeline = () => {
-  const sample_user_id = "012";
+  const sample_user_id = "123";
 
   const fetcher = async (url: string) => {
     const response = await fetch(url, {
