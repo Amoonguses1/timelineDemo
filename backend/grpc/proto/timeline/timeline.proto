@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+import "proto/post/post.proto";
+
+option go_package = "grpc-test/protogen/timeline";
+
+enum Event {
+    INITIAL_ACCESS = 0;
+    POST_CREATED = 1;
+    POSTS_DELETED = 2;
+}
+
+message TimelineResponse {
+    Event event_type = 1;
+    repeated Post posts = 2;
+}
