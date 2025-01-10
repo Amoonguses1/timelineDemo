@@ -11,6 +11,7 @@ clean:
 .PHONY: protoc
 protoc:
 	protoc --go_opt=module=${GO_MODULE} --go_out=. \
+		--go-grpc_opt=module=${GO_MODULE} --go-grpc_out=. \
 		./proto/timeline/*.proto ./proto/post/*.proto
 
 .PHONY: build
