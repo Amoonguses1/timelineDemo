@@ -1,25 +1,29 @@
 version: '3.3'
 services:
-  app-old:
-    build:
-      context: ./app-old
-    networks:
-      - app-network
+  # app-old:
+  #   build:
+  #     context: ./app-old
+  #   networks:
+  #     - app-network
 
   app-new:
     build:
       context: ./app-new
+    ports:
+      - 80:80
+      - 8081:8081
     networks:
       - app-network
 
-  nginx:
-    image: nginx:latest
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-    ports:
-      - '80:80'
-    networks:
-      - app-network
+  # nginx:
+  #   image: nginx:latest
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #   ports:
+  #     - '80:80'
+  #     - '8081:8081'
+  #   networks:
+  #     - app-network
 
 networks:
   app-network:

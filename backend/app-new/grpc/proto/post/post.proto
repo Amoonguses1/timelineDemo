@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+option go_package = "timelineDemo/grpc/protogen/post";
+
+import "google/protobuf/timestamp.proto";
+
+message Post {
+    string id = 1;
+    string user_id = 2;
+    string text = 3;
+    google.protobuf.Timestamp created_at = 4;
+}
