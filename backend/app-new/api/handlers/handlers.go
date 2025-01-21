@@ -10,6 +10,8 @@ import (
 	"time"
 	usecases "timelineDemo/internal/app/usecases"
 	"timelineDemo/internal/domain/entities"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -17,7 +19,7 @@ const (
 	queryEventKey = "event_type"
 )
 
-func CreatePost(w http.ResponseWriter, r *http.Request, mu *sync.Mutex, usersChan *map[string]chan entities.TimelineEvent, createPostUsecase usecases.CreatePostUsecaseInterface) {
+func CreatePost(w http.ResponseWriter, r *http.Request, mu *sync.Mutex, usersChan *map[uuid.UUID]chan entities.TimelineEvent, createPostUsecase usecases.CreatePostUsecaseInterface) {
 	var body createPostRequestBody
 
 	decoder := json.NewDecoder(r.Body)
@@ -27,15 +29,21 @@ func CreatePost(w http.ResponseWriter, r *http.Request, mu *sync.Mutex, usersCha
 		return
 	}
 
-	post, err := createPostUsecase.CreatePost(body.UserID, body.Text)
+	userID, err := uuid.Parse(body.UserID)
+	if err != nil {
+		http.Error(w, fmt.Sprintln("invalid user id"), http.StatusBadRequest)
+		return
+	}
+
+	post, err := createPostUsecase.CreatePost(userID, body.Text)
 	if err != nil {
 		http.Error(w, fmt.Sprintln("Could not create a post."), http.StatusInternalServerError)
 		return
 	}
 
-	go func(userChan *map[string]chan entities.TimelineEvent) {
+	go func(userChan *map[uuid.UUID]chan entities.TimelineEvent) {
 		var posts []*entities.Post
-		posts = append(posts, &post)
+		posts = append(posts, post)
 
 		mu.Lock()
 		for _, userChan := range *usersChan {
@@ -55,9 +63,14 @@ func CreatePost(w http.ResponseWriter, r *http.Request, mu *sync.Mutex, usersCha
 	}
 }
 
-func SseTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUserAndFolloweePostsUsecaseInterface, mu *sync.Mutex, usersChan *map[string]chan entities.TimelineEvent) {
+func SseTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUserAndFolloweePostsUsecaseInterface, mu *sync.Mutex, usersChan *map[uuid.UUID]chan entities.TimelineEvent) {
 	log.Println("app-new sse connection called")
-	userID := r.PathValue("id")
+	userID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		http.Error(w, fmt.Sprintln("invalid user id"), http.StatusBadRequest)
+		return
+	}
+
 	posts, err := u.GetUserAndFolloweePosts(userID)
 	if err != nil {
 		http.Error(w, fmt.Sprintln("Could not get posts"), http.StatusInternalServerError)
@@ -100,8 +113,13 @@ func SseTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUserAndFo
 	}
 }
 
-func LongPollingTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUserAndFolloweePostsUsecaseInterface, mu *sync.Mutex, usersChan *map[string]chan entities.TimelineEvent) {
-	userID := r.PathValue("id")
+func LongPollingTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUserAndFolloweePostsUsecaseInterface, mu *sync.Mutex, usersChan *map[uuid.UUID]chan entities.TimelineEvent) {
+	userID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		http.Error(w, fmt.Sprintln("invalid user id"), http.StatusBadRequest)
+		return
+	}
+
 	queryParams := r.URL.Query()
 	eventType, ok := queryParams[queryEventKey]
 	if !ok || len(eventType) != 1 {
@@ -119,7 +137,7 @@ func LongPollingTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetU
 	}
 }
 
-func handleTimelineAccess(w http.ResponseWriter, userID string, u usecases.GetUserAndFolloweePostsUsecaseInterface) {
+func handleTimelineAccess(w http.ResponseWriter, userID uuid.UUID, u usecases.GetUserAndFolloweePostsUsecaseInterface) {
 	posts, err := u.GetUserAndFolloweePosts(userID)
 	if err != nil {
 		http.Error(w, "Could not get posts", http.StatusInternalServerError)
@@ -135,7 +153,7 @@ func handleTimelineAccess(w http.ResponseWriter, userID string, u usecases.GetUs
 	}
 }
 
-func handlePollingRequest(w http.ResponseWriter, r *http.Request, userID string, usersChan *map[string]chan entities.TimelineEvent, mu *sync.Mutex) {
+func handlePollingRequest(w http.ResponseWriter, r *http.Request, userID uuid.UUID, usersChan *map[uuid.UUID]chan entities.TimelineEvent, mu *sync.Mutex) {
 	ctx, cancel := context.WithTimeout(r.Context(), expiredTime)
 	defer cancel()
 

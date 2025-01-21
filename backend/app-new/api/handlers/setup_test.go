@@ -9,6 +9,7 @@ import (
 	"timelineDemo/internal/domain/repositories"
 	"timelineDemo/internal/infrastructure/persistence"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -23,16 +24,16 @@ type HandlersTestSuite struct {
 	createPostUsecase              usecases.CreatePostUsecaseInterface
 	getUserAndFolloweePostsUsecase usecases.GetUserAndFolloweePostsUsecaseInterface
 	postsRepository                repositories.PostsRepositoryInterface
-	userChannels                   map[string]chan entities.TimelineEvent
+	userChannels                   map[uuid.UUID]chan entities.TimelineEvent
 	mu                             sync.Mutex
 }
 
 func (s *HandlersTestSuite) SetupTest() {
-	postMap := make(map[string][]*entities.Post)
+	postMap := make(map[uuid.UUID][]*entities.Post)
 	s.postsRepository = persistence.NewPostsRepository(&postMap)
 	s.createPostUsecase = usecases.NewCreatePostsUsecase(s.postsRepository)
 	s.getUserAndFolloweePostsUsecase = usecases.NewGetUserAndFolloweePostsUsecase(s.postsRepository)
 
 	s.mu = sync.Mutex{}
-	s.userChannels = make(map[string]chan entities.TimelineEvent)
+	s.userChannels = make(map[uuid.UUID]chan entities.TimelineEvent)
 }

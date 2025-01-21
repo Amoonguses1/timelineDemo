@@ -18,6 +18,7 @@ import (
 	"timelineDemo/internal/domain/entities"
 	"timelineDemo/internal/infrastructure/persistence"
 
+	"github.com/google/uuid"
 	"google.golang.org/grpc"
 )
 
@@ -27,11 +28,11 @@ const (
 )
 
 func main() {
-	postsMap := make(map[string][]*entities.Post)
+	postsMap := make(map[uuid.UUID][]*entities.Post)
 	postsRepository := persistence.NewPostsRepository(&postsMap)
 	createPostUsecase := usecases.NewCreatePostsUsecase(postsRepository)
 	getUserAndFolloweePostsUsecase := usecases.NewGetUserAndFolloweePostsUsecase(postsRepository)
-	var userChannels = make(map[string]chan entities.TimelineEvent)
+	var userChannels = make(map[uuid.UUID]chan entities.TimelineEvent)
 	var mu sync.Mutex
 
 	mux := http.NewServeMux()

@@ -3,10 +3,12 @@ package usecases
 import (
 	"timelineDemo/internal/domain/entities"
 	"timelineDemo/internal/domain/repositories"
+
+	"github.com/google/uuid"
 )
 
 type GetUserAndFolloweePostsUsecaseInterface interface {
-	GetUserAndFolloweePosts(userID string) ([]*entities.Post, error)
+	GetUserAndFolloweePosts(userID uuid.UUID) ([]*entities.Post, error)
 }
 
 type getUserAndFolloweePostsUsecase struct {
@@ -17,7 +19,7 @@ func NewGetUserAndFolloweePostsUsecase(postsRepository repositories.PostsReposit
 	return &getUserAndFolloweePostsUsecase{postsRepository: postsRepository}
 }
 
-func (p *getUserAndFolloweePostsUsecase) GetUserAndFolloweePosts(userID string) ([]*entities.Post, error) {
+func (p *getUserAndFolloweePostsUsecase) GetUserAndFolloweePosts(userID uuid.UUID) ([]*entities.Post, error) {
 	posts, err := p.postsRepository.GetUserAndFolloweePosts(userID)
 	if err != nil {
 		return nil, err

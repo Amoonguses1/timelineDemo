@@ -13,6 +13,7 @@ import (
 	"time"
 	"timelineDemo/internal/domain/entities"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -24,7 +25,7 @@ func (s *HandlersTestSuite) TestCreatePost() {
 	}{
 		{
 			name:         "create post",
-			body:         `{ "user_id": "user1", "text": "test2" }`,
+			body:         fmt.Sprintf(`{ "user_id": "%s", "text": "test2" }`, s.newUUID()),
 			expectedCode: http.StatusCreated,
 		},
 		{
@@ -47,12 +48,12 @@ func (s *HandlersTestSuite) TestCreatePost() {
 }
 
 func (s *HandlersTestSuite) TestSseTimeline() {
-	user1 := "user1"
+	user1 := s.newUUID()
 	s.newTestPost(fmt.Sprintf(`{ "user_id": "%s", "text": "test5" }`, user1))
 
 	tests := []struct {
 		name          string
-		userID        string
+		userID        uuid.UUID
 		expectedCount int
 	}{
 		{
@@ -62,7 +63,7 @@ func (s *HandlersTestSuite) TestSseTimeline() {
 		},
 		{
 			name:          "get no posts",
-			userID:        "",
+			userID:        s.newUUID(),
 			expectedCount: 0,
 		},
 		{
@@ -82,7 +83,7 @@ func (s *HandlersTestSuite) TestSseTimeline() {
 			"/api/{id}/sse",
 			strings.NewReader(""),
 		).WithContext(ctx)
-		req.SetPathValue("id", test.userID)
+		req.SetPathValue("id", test.userID.String())
 
 		var wg sync.WaitGroup
 
@@ -124,12 +125,12 @@ func (s *HandlersTestSuite) TestSseTimeline() {
 }
 
 func (s *HandlersTestSuite) TestLongPollingTimeline() {
-	user1 := "user1"
+	user1 := s.newUUID()
 	s.newTestPost(fmt.Sprintf(`{ "user_id": "%s", "text": "test5" }`, user1))
 
 	tests := []struct {
 		name         string
-		userID       string
+		userID       uuid.UUID
 		queryKey     string
 		query        string
 		expectedCode int
@@ -181,7 +182,7 @@ func (s *HandlersTestSuite) TestLongPollingTimeline() {
 		query := req.URL.Query()
 		query.Add(test.queryKey, test.query)
 		req.URL.RawQuery = query.Encode()
-		req.SetPathValue("id", test.userID)
+		req.SetPathValue("id", test.userID.String())
 
 		var wg sync.WaitGroup
 
@@ -209,6 +210,15 @@ func (s *HandlersTestSuite) newTestPost(body string) {
 	rr := httptest.NewRecorder()
 
 	CreatePost(rr, req, &s.mu, &s.userChannels, s.createPostUsecase)
+}
+
+func (s *HandlersTestSuite) newUUID() uuid.UUID {
+	newUUID, err := uuid.NewRandom()
+	if err != nil {
+		s.T().Errorf("Failed to generate uuid: %v", err)
+	}
+
+	return newUUID
 }
 
 // TestHandlersTestSuite runs all of the tests attached to HandlersTestSuite.
