@@ -1,7 +1,5 @@
 package entities
 
-type EventType int
-
 const (
 	TimelineAccessed = "TimelineAccessed"
 	PostCreated      = "PostCreated"

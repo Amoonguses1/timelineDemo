@@ -1,52 +1,105 @@
 package server
 
 import (
+	"fmt"
 	"log"
+	"sync"
 	"time"
 	"timelineDemo/grpc/protogen/post"
 	timelinegrpc "timelineDemo/grpc/protogen/timeline"
+	"timelineDemo/internal/app/usecases"
+	"timelineDemo/internal/domain/entities"
 
+	"github.com/google/uuid"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func NewGrpcServer() *GrpcServer {
-	return &GrpcServer{}
+func NewGrpcServer(u usecases.GetUserAndFolloweePostsUsecaseInterface, mu *sync.Mutex, usersChan *map[uuid.UUID]chan entities.TimelineEvent) *GrpcServer {
+	return &GrpcServer{u: u, mu: mu, usersChan: usersChan}
 }
 
 type GrpcServer struct {
 	timelinegrpc.UnimplementedTimelineServiceServer
+
+	u         usecases.GetUserAndFolloweePostsUsecaseInterface
+	mu        *sync.Mutex
+	usersChan *map[uuid.UUID]chan entities.TimelineEvent
 }
 
 func (s *GrpcServer) GetPosts(req *timelinegrpc.TimelineRequest, stream timelinegrpc.TimelineService_GetPostsServer) error {
-	post1 := &timelinegrpc.TimelineResponse{
-		EventType: timelinegrpc.Event_POST_CREATED,
-		Posts: []*post.Post{
-			dummyPost(req.GetId()),
-		},
-	}
-	if err := stream.Send(post1); err != nil {
+	userID, err := uuid.Parse(req.GetId())
+	if err != nil {
+		err = status.Error(codes.InvalidArgument, "failed to parse user id")
 		return err
 	}
 
-	post2 := &timelinegrpc.TimelineResponse{
-		EventType: timelinegrpc.Event_POST_CREATED,
-		Posts: []*post.Post{
-			dummyPost(req.GetId()),
-		},
-	}
-	if err := stream.Send(post2); err != nil {
+	posts, err := s.u.GetUserAndFolloweePosts(userID)
+	if err != nil {
+		err = status.Error(codes.Internal, "failed to get posts")
 		return err
 	}
 
-	return nil
+	s.mu.Lock()
+	if _, exists := (*s.usersChan)[userID]; !exists {
+		(*s.usersChan)[userID] = make(chan entities.TimelineEvent, 1)
+	}
+	userChan := (*s.usersChan)[userID]
+	s.mu.Unlock()
+	ctx := stream.Context()
+
+	userChan <- entities.TimelineEvent{EventType: entities.TimelineAccessed, Posts: posts}
+
+	for {
+		select {
+		case event := <-userChan:
+			log.Println("event comes in")
+			response, err := convertToTimelineResponse(event)
+			if err != nil {
+				err = status.Error(codes.Internal, "failed to convert posts")
+				return err
+			}
+			if err = stream.Send(response); err != nil {
+				return err
+			}
+		case <-ctx.Done():
+			s.mu.Lock()
+			delete(*s.usersChan, userID)
+			s.mu.Unlock()
+			return nil
+		case <-time.After(time.Second * 10):
+			fmt.Println("timed out waiting for messages")
+			return nil
+		}
+	}
 }
 
-func dummyPost(id string) *post.Post {
-	log.Println("dummyPost called")
-	return &post.Post{
-		UserId:    id,
-		Id:        "hoge",
-		Text:      "new test",
-		CreatedAt: timestamppb.New(time.Now()),
+func convertToTimelineResponse(event entities.TimelineEvent) (*timelinegrpc.TimelineResponse, error) {
+	var eventType timelinegrpc.Event
+	switch event.EventType {
+	case entities.TimelineAccessed:
+		eventType = timelinegrpc.Event_INITIAL_ACCESS
+	case entities.PostCreated:
+		eventType = timelinegrpc.Event_POST_CREATED
+	case entities.PostDeleted:
+		eventType = timelinegrpc.Event_POSTS_DELETED
+	default:
+		return nil, fmt.Errorf("unknown type")
 	}
+
+	var posts []*post.Post
+	for _, p := range event.Posts {
+		posts = append(posts, &post.Post{
+			UserId:    p.UserID.String(),
+			Id:        p.ID.String(),
+			Text:      p.Text,
+			CreatedAt: timestamppb.New(p.CreatedAt),
+		})
+	}
+
+	return &timelinegrpc.TimelineResponse{
+		EventType: eventType,
+		Posts:     posts,
+	}, nil
 }

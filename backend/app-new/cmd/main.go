@@ -57,7 +57,7 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
-	timelinegrpc.RegisterTimelineServiceServer(s, server.NewGrpcServer())
+	timelinegrpc.RegisterTimelineServiceServer(s, server.NewGrpcServer(getUserAndFolloweePostsUsecase, &mu, &userChannels))
 
 	// activate grpc server
 	go func() {
