@@ -1,8 +1,8 @@
 "use client";
 import useSWR from "swr";
-import { GetCollectionOfPostsBySpecificUserAndUsersTheyFollowResponse } from "./get-collection-of-posts-by-specific-user-and-users-they-follow";
+import { Post } from "../models/post";
 
-type ApiResponse = GetCollectionOfPostsBySpecificUserAndUsersTheyFollowResponse;
+type ApiResponse = Post[];
 
 type ApiError = {
   message: string;

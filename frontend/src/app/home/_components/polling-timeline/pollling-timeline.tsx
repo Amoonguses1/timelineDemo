@@ -2,39 +2,24 @@
 import React, { useState, useEffect } from "react";
 import { VStack } from "@chakra-ui/react";
 import { TimelinePostCard } from "../timeline/timeline-post-card";
-import { getInitialTimeline } from "@/lib/actions/get_initial_timeline";
 import { pollFollowingPosts } from "@/lib/actions/poll_following_post";
 import { Post } from "@/lib/models/post";
 
-export const PollingTimelineFeed = () => {
-  const [posts, setPosts] = useState<Post[]>([]);
-  const { data: initialData, error: initialError } = getInitialTimeline();
-  console.log(`initialData:${initialData}`)
-  const { data: pollingData, error: pollingError } = pollFollowingPosts();
-  const initialPosts = initialData;
-  console.log(`initialPost:${initialPosts}`)
-  const newPosts = pollingData;
+type Props = {
+  initialPosts: Post[];
+};
+
+export const PollingTimelineFeed = ({ initialPosts }: Props) => {
+  const [posts, setPosts] = useState<Post[]>(initialPosts);
+  const { data: pollingPosts, error: pollingError } = pollFollowingPosts();
 
   useEffect(() => {
-    if (initialPosts?.length) {
-      setPosts(initialPosts);
+    if (pollingPosts?.length) {
+      setPosts((prevPosts) => [...pollingPosts, ...prevPosts]);
     }
-  }, [initialData]);
+  }, [pollingPosts]);
 
-  useEffect(() => {
-    if (newPosts?.length) {
-      setPosts((prevPosts) => [...newPosts, ...prevPosts]);
-    }
-  }, [pollingData]);
-
-  if (initialError) {
-    return (
-      <div>
-        <p>failed to initial fetch</p>
-        <p>error message: {initialError.message}</p>
-      </div>
-    );
-  } else if (pollingError) {
+  if (pollingError) {
     return (
       <div>
         <p>failed to polling fetch</p>
