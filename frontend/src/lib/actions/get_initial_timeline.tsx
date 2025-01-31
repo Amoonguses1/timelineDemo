@@ -10,9 +10,9 @@ type ApiError = {
 };
 
 export const getInitialTimeline = () => {
-  const sample_user_id = "123";
-
   const fetcher = async (url: string) => {
+    console.log('NEXT_PUBLIC_LOCAL_API_BASE_URL:', process.env.NEXT_PUBLIC_LOCAL_API_BASE_URL);
+    console.log('NEXT_PUBLIC_USER_ID:', process.env.NEXT_PUBLIC_USER_ID);
     const response = await fetch(url, {
       method: "GET",
       headers: {
@@ -29,6 +29,7 @@ export const getInitialTimeline = () => {
     }
 
     const data = await response.json();
+    console.log(`data:${data}`)
     if (!data) {
       return [];
     }
@@ -36,7 +37,7 @@ export const getInitialTimeline = () => {
   };
 
   const { data, error } = useSWR<ApiResponse, ApiError>(
-    `http://localhost:80/api/${sample_user_id}/polling?event_type=TimelineAccessed`,
+    `${process.env.NEXT_PUBLIC_LOCAL_API_BASE_URL}/api/${process.env.NEXT_PUBLIC_USER_ID}/polling?event_type=TimelineAccessed`,
     fetcher,
     {
       revalidateOnFocus: false,

@@ -9,8 +9,10 @@ import { Post } from "@/lib/models/post";
 export const PollingTimelineFeed = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const { data: initialData, error: initialError } = getInitialTimeline();
+  console.log(`initialData:${initialData}`)
   const { data: pollingData, error: pollingError } = pollFollowingPosts();
   const initialPosts = initialData;
+  console.log(`initialPost:${initialPosts}`)
   const newPosts = pollingData;
 
   useEffect(() => {

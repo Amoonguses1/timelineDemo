@@ -10,7 +10,6 @@ type ApiError = {
 };
 
 export const pollFollowingPosts = () => {
-  const sample_user_id = "123";
   const POLLING_TIMEOUT = 30000;
 
   const fetcher = async (url: string) => {
@@ -53,7 +52,7 @@ export const pollFollowingPosts = () => {
   };
 
   const { data, error, mutate } = useSWR<ApiResponse | null, ApiError>(
-    `http://localhost:80/api/${sample_user_id}/polling?event_type=PollingRequest`,
+    `${process.env.NEXT_PUBLIC_LOCAL_API_BASE_URL}/api/${process.env.NEXT_PUBLIC_USER_ID}/polling?event_type=PollingRequest`,
     fetcher,
     {
       refreshWhenHidden: true,
