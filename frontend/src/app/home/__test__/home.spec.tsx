@@ -1,10 +1,10 @@
 import { render, waitFor } from "@testing-library/react";
 import { VStack } from "@chakra-ui/react";
 import { Home } from "../_components/home";
-import { GetCollectionOfPostsBySpecificUserAndUsersTheyFollowResponse } from "@/lib/actions/get-collection-of-posts-by-specific-user-and-users-they-follow";
 import { TimelinePostCard } from "../_components/timeline/timeline-post-card";
+import { Post } from "@/lib/models/post";
 
-const mockPosts: GetCollectionOfPostsBySpecificUserAndUsersTheyFollowResponse =
+const mockPosts: Post[] =
   [
     {
       id: "123",

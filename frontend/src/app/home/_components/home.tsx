@@ -8,7 +8,7 @@ export const Home = async () => {
   const initialPosts = await getInitialTimeline();
   return (
     <Flex width="100%" height="100vh">
-      <Box flex="1 1 50%">
+      <Box flex="1 1 33%">
         <VStack>
           <Box fontSize="lg">Normal timeline feed</Box>
           <Divider borderColor="white" />
@@ -18,9 +18,19 @@ export const Home = async () => {
         </VStack>
       </Box>
       <Divider orientation="vertical" borderColor="white" />
-      <Box flex="1 1 50%">
+      <Box flex="1 1 33%">
         <VStack>
           <Box fontSize="lg">Polling timeline feed</Box>
+          <Divider borderColor="white" />
+          <Box width="100%">
+            <PollingTimelineFeed initialPosts={initialPosts} />
+          </Box>
+        </VStack>
+      </Box>
+      <Divider orientation="vertical" borderColor="white" />
+      <Box flex="1 1 33%">
+        <VStack>
+          <Box fontSize="lg">SSE timeline feed</Box>
           <Divider borderColor="white" />
           <Box width="100%">
             <PollingTimelineFeed initialPosts={initialPosts} />
