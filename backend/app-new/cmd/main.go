@@ -49,6 +49,13 @@ func main() {
 		handlers.LongPollingTimeline(w, r, getUserAndFolloweePostsUsecase, &mu, &userChannels)
 	})
 
+	// Register a WebSocket endpoint to provide real-time timeline updates.
+	// This handler establishes a WebSocket connection for a user identified by {id}
+	// and streams timeline updates including new posts or deletions from followed users.
+	mux.HandleFunc("/api/{id}/ws", func(w http.ResponseWriter, r *http.Request) {
+		handlers.WebSocketTimeline(w, r, getUserAndFolloweePostsUsecase, &mu, &userChannels)
+	})
+
 	handlersWithCORS := middlewares.CORS(mux)
 
 	// setup grpc server
