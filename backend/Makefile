@@ -5,6 +5,7 @@ build:
 	docker-compose build
 
 up:
+	make down
 	docker-compose up -d
 
 exec_app:
@@ -16,5 +17,7 @@ down:
 stop:
 	docker-compose stop
 
-reload_nginx_config:
-	docker-compose exec nginx nginx -s reload
+
+bench:
+	make down
+	MODE=bench docker-compose up -d
