@@ -2,7 +2,7 @@ import { useRef, useState, useEffect } from "react";
 import { ERROR_MESSAGES } from "@/lib/constants/error-messages";
 import { Post } from "@/lib/models/post";
 
-interface useSSETimelineFeedReturn {
+export interface UseSSETimelineFeedReturn {
   errorMessage: string | null;
   posts: Post[];
 }
@@ -19,25 +19,25 @@ export enum SSETimelineEventType {
 }
 
 interface TimelineAccessedResponse {
-  event_type: SSETimelineEventType.TimelineAccessed;
-  posts: Post[];
+  EventType: SSETimelineEventType.TimelineAccessed;
+  Posts: Post[];
 }
 
 interface PostCreatedResponse {
-  event_type: SSETimelineEventType.PostCreated;
-  posts: Post[];
+  EventType: SSETimelineEventType.PostCreated;
+  Posts: Post[];
 }
 
 interface PostDeletedResponse {
-  event_type: SSETimelineEventType.PostDeleted;
-  posts: Post[];
+  EventType: SSETimelineEventType.PostDeleted;
+  Posts: Post[];
 }
 
-export const useSSETimelineFeed = (): useSSETimelineFeedReturn => {
+export const useSSEEventSourceTimelineFeed = (): UseSSETimelineFeedReturn => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
-  const url: string = `${process.env.NEXT_PUBLIC_LOCAL_API_BASE_URL}/api/users/${process.env.NEXT_PUBLIC_USER_ID}/timelines/reverse_chronological`;
+  const url: string = `${process.env.NEXT_PUBLIC_LOCAL_API_BASE_URL}/api/${process.env.NEXT_PUBLIC_USER_ID}/sse`;
 
   useEffect(() => {
     if (eventSourceRef.current) return;
@@ -49,13 +49,13 @@ export const useSSETimelineFeed = (): useSSETimelineFeedReturn => {
     eventSource.onmessage = (event) => {
       try {
         const newPosts: SSETimelineEventResponse = JSON.parse(event.data);
-        switch (newPosts.event_type) {
+        switch (newPosts.EventType) {
           case SSETimelineEventType.TimelineAccessed:
           case SSETimelineEventType.PostCreated:
-            if (!newPosts.posts || newPosts.posts.length === 0) {
+            if (!newPosts.Posts || newPosts.Posts.length === 0) {
               return;
             }
-            setPosts((prevPosts) => [...newPosts.posts, ...prevPosts]);
+            setPosts((prevPosts) => [...newPosts.Posts, ...prevPosts]);
             break;
           case SSETimelineEventType.PostDeleted:
             // TODO: https://github.com/okuda-seminar/Twitter-Clone/issues/540

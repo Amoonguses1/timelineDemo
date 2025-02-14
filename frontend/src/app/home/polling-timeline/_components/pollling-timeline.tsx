@@ -1,15 +1,15 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { VStack } from "@chakra-ui/react";
-import { TimelinePostCard } from "../timeline/timeline-post-card";
+import { TimelinePostCard } from "../../_components/timeline/timeline-post-card";
 import { pollFollowingPosts } from "@/lib/actions/poll_following_post";
 import { Post } from "@/lib/models/post";
 
-type Props = {
+export type InitialPostsProps = {
   initialPosts: Post[];
 };
 
-export const PollingTimelineFeed = ({ initialPosts }: Props) => {
+export const PollingTimelineFeed = ({ initialPosts }: InitialPostsProps) => {
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const { data: pollingPosts, error: pollingError } = pollFollowingPosts();
 
@@ -32,7 +32,7 @@ export const PollingTimelineFeed = ({ initialPosts }: Props) => {
     return (
       <VStack spacing={4} align="stretch">
         {posts.map((post) => (
-          <TimelinePostCard key={post.id} post={post} />
+          <TimelinePostCard key={`polling-${post.id}`} post={post} />
         ))}
       </VStack>
     );

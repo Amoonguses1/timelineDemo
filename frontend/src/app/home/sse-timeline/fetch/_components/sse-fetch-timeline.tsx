@@ -1,11 +1,11 @@
 "use client";
 
 import { VStack, Box } from "@chakra-ui/react";
-import { TimelinePostCard } from "../timeline/timeline-post-card";
-import { useSSETimelineFeed } from "./use-sse-timeline"; 
+import { TimelinePostCard } from "../../../_components/timeline/timeline-post-card";
+import { useSSEFetchTimelineFeed } from "./use-sse-fetch-timeline";
 
-export const SSETimelineFeed = () => {
-  const { posts, errorMessage } = useSSETimelineFeed();
+export const SSEFetchTimelineFeed = () => {
+  const { posts, errorMessage } = useSSEFetchTimelineFeed();
 
   if (errorMessage) {
     // Handling errors that cannot be caught by error.tsx from asynchronous processing.
@@ -16,7 +16,7 @@ export const SSETimelineFeed = () => {
     return (
       <VStack spacing={4} align="stretch">
         {posts.map((post) => (
-          <TimelinePostCard key={post.id} post={post} />
+          <TimelinePostCard key={`sse-eventsource-${post.id}`} post={post} />
         ))}
       </VStack>
     );
