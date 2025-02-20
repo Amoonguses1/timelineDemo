@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+import "proto/post/post.proto";
+
+option go_package = "benchmark/connector/grpc/protogen/timeline";
+
+enum Event {
+    INITIAL_ACCESS = 0;
+    POST_CREATED = 1;
+    POSTS_DELETED = 2;
+}
+
+service TimelineService {
+    rpc GetPosts (TimelineRequest)  returns (stream TimelineResponse);
+}
+
+message TimelineRequest {
+    string id = 1;
+}
+
+message TimelineResponse {
+    Event event_type = 1;
+    repeated Post posts = 2;
+}

@@ -1,7 +1,7 @@
 package main
 
 import (
-	longpolling "benchmark/connector/long_polling"
+	grpcconnector "benchmark/connector/grpc"
 	"log"
 	"sync"
 	"time"
@@ -12,7 +12,8 @@ import (
 func main() {
 	// Determine connection type based on the command-line argument
 	// conn := sse.NewSSEConnector()
-	conn := longpolling.NewLongPollingConnector()
+	// conn := longpolling.NewLongPollingConnector()
+	conn := grpcconnector.NewGRPCConnector()
 
 	// Set up cases for benchmarking.
 	banchCases := []struct {
@@ -30,8 +31,8 @@ func main() {
 		{
 			name:           "many posters case",
 			numPosters:     2,
-			PostsPerUser:   1,
-			NumConnections: 5,
+			PostsPerUser:   2,
+			NumConnections: 1,
 		},
 	}
 
