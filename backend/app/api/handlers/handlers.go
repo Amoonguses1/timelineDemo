@@ -34,6 +34,7 @@ func CreatePost(w http.ResponseWriter, r *http.Request, mu *sync.Mutex, usersCha
 		http.Error(w, fmt.Sprintln("invalid user id"), http.StatusBadRequest)
 		return
 	}
+	log.Println("createPost request arrived:", userID.String()[:7])
 
 	post, err := createPostUsecase.CreatePost(userID, body.Text)
 	if err != nil {
@@ -154,6 +155,7 @@ func handleTimelineAccess(w http.ResponseWriter, userID uuid.UUID, u usecases.Ge
 }
 
 func handlePollingRequest(w http.ResponseWriter, r *http.Request, userID uuid.UUID, usersChan *map[uuid.UUID]chan entities.TimelineEvent, mu *sync.Mutex) {
+	log.Println("Polling request arrived:", userID.String()[:7])
 	ctx, cancel := context.WithTimeout(r.Context(), expiredTime)
 	defer cancel()
 
