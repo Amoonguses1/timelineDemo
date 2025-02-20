@@ -42,6 +42,17 @@ func WebSocketTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUse
 	defer ws.Close()
 	log.Println("Client Connected")
 
+	// Set up WebSocket Close flow.
+	ws.SetCloseHandler(func(code int, text string) error {
+		log.Printf("WebSocket closed: User=%s, Code=%d, Reason=%s", userID, code, text)
+
+		mu.Lock()
+		delete(*usersChan, userID)
+		mu.Unlock()
+
+		return nil
+	})
+
 	// Fetch the user's posts and posts from followed users using the use case.
 	// If retrieval fails, log the error and terminate connection.
 	posts, err := u.GetUserAndFolloweePosts(userID)
@@ -65,6 +76,22 @@ func WebSocketTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUse
 		return
 	}
 
+	closeChan := make(chan struct{})
+	go func() {
+		defer close(closeChan)
+
+		for {
+			_, _, err := ws.ReadMessage()
+			if err != nil {
+				if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+					return
+				}
+				log.Println("WebSocket read error:", err)
+				return
+			}
+		}
+	}()
+
 	// Continuously listen for notifications while the connection is active.
 	for {
 		select {
@@ -78,6 +105,14 @@ func WebSocketTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUse
 
 		// Handle WebSocket disconnection and clean up the user channel.
 		case <-r.Context().Done():
+			// Remove the user from the active WebSocket channel map.
+			mu.Lock()
+			delete(*usersChan, userID)
+			mu.Unlock()
+			return
+
+		// Handle WebSocket disconnection message and clean up the user channel.
+		case <-closeChan:
 			// Remove the user from the active WebSocket channel map.
 			mu.Lock()
 			delete(*usersChan, userID)

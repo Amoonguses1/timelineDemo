@@ -1,7 +1,7 @@
 package main
 
 import (
-	grpcconnector "benchmark/connector/grpc"
+	websocketconnector "benchmark/connector/websocket"
 	"log"
 	"sync"
 	"time"
@@ -13,7 +13,8 @@ func main() {
 	// Determine connection type based on the command-line argument
 	// conn := sse.NewSSEConnector()
 	// conn := longpolling.NewLongPollingConnector()
-	conn := grpcconnector.NewGRPCConnector()
+	// conn := grpcconnector.NewGRPCConnector()
+	conn := websocketconnector.NewWebSocketConnector()
 
 	// Set up cases for benchmarking.
 	banchCases := []struct {
