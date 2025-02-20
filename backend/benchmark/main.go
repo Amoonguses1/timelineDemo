@@ -1,7 +1,7 @@
 package main
 
 import (
-	"benchmark/connector/sse"
+	longpolling "benchmark/connector/long_polling"
 	"log"
 	"sync"
 	"time"
@@ -11,7 +11,8 @@ import (
 
 func main() {
 	// Determine connection type based on the command-line argument
-	conn := sse.NewSSEConnector()
+	// conn := sse.NewSSEConnector()
+	conn := longpolling.NewLongPollingConnector()
 
 	// Set up cases for benchmarking.
 	banchCases := []struct {
