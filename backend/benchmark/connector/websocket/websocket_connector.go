@@ -2,10 +2,12 @@ package websocketconnector
 
 import (
 	"benchmark/connector"
+	fileio "benchmark/fileIO"
 	"fmt"
 	"log"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -22,6 +24,7 @@ func (c *WebSocketConnector) Connect(userID uuid.UUID, wg *sync.WaitGroup, conne
 	defer wg.Done()
 
 	// connect to the WebSocket endpoint
+	fileio.WriteNewText("WSBenchLogs.txt", fmt.Sprintf("request send\n%s: %v\n", userID.String()[:7], time.Now()))
 	url := fmt.Sprintf("ws://localhost:80/api/%s/ws", userID.String())
 	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
 	if err != nil {
@@ -34,6 +37,7 @@ func (c *WebSocketConnector) Connect(userID uuid.UUID, wg *sync.WaitGroup, conne
 
 	for {
 		_, message, err := conn.ReadMessage()
+		fileio.WriteNewText("WSBenchLogs.txt", fmt.Sprintf("response received\n%s: %v\n", userID.String()[:7], time.Now()))
 
 		if err != nil {
 			log.Println("read:", err)

@@ -9,6 +9,7 @@ import (
 	timelinegrpc "timelineDemo/grpc/protogen/timeline"
 	"timelineDemo/internal/app/usecases"
 	"timelineDemo/internal/domain/entities"
+	fileio "timelineDemo/internal/infrastructure/fileIO"
 
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
@@ -16,8 +17,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func NewGrpcServer(u usecases.GetUserAndFolloweePostsUsecaseInterface, mu *sync.Mutex, usersChan *map[uuid.UUID]chan entities.TimelineEvent) *GrpcServer {
-	return &GrpcServer{u: u, mu: mu, usersChan: usersChan}
+func NewGrpcServer(u usecases.GetUserAndFolloweePostsUsecaseInterface, mu *sync.Mutex, usersChan *map[uuid.UUID]chan entities.TimelineEvent, isBench bool) *GrpcServer {
+	return &GrpcServer{u: u, mu: mu, usersChan: usersChan, isBench: isBench}
 }
 
 type GrpcServer struct {
@@ -26,6 +27,7 @@ type GrpcServer struct {
 	u         usecases.GetUserAndFolloweePostsUsecaseInterface
 	mu        *sync.Mutex
 	usersChan *map[uuid.UUID]chan entities.TimelineEvent
+	isBench   bool
 }
 
 func (s *GrpcServer) GetPosts(req *timelinegrpc.TimelineRequest, stream timelinegrpc.TimelineService_GetPostsServer) error {
@@ -33,6 +35,9 @@ func (s *GrpcServer) GetPosts(req *timelinegrpc.TimelineRequest, stream timeline
 	if err != nil {
 		err = status.Error(codes.InvalidArgument, "failed to parse user id")
 		return err
+	}
+	if s.isBench {
+		fileio.WriteNewText("gRPCBenchLogs.txt", fmt.Sprintf("request comes\n%s: %v\n", userID.String()[:7], time.Now()))
 	}
 
 	posts, err := s.u.GetUserAndFolloweePosts(userID)
@@ -59,6 +64,9 @@ func (s *GrpcServer) GetPosts(req *timelinegrpc.TimelineRequest, stream timeline
 			if err != nil {
 				err = status.Error(codes.Internal, "failed to convert posts")
 				return err
+			}
+			if s.isBench {
+				fileio.WriteNewText("gRPCBenchLogs.txt", fmt.Sprintf("response send\n%s: %v\n", userID.String()[:7], time.Now()))
 			}
 			if err = stream.Send(response); err != nil {
 				return err

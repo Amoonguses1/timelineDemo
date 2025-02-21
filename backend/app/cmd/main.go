@@ -31,7 +31,7 @@ var IsBench bool
 
 func main() {
 	// Determine if the server should run in benchmark mode based on the command-line argument.
-	if len(os.Args) > 1 && os.Args[1] == "bench" {
+	if len(os.Args) > 2 && os.Args[2] == "bench" {
 		IsBench = true
 	}
 
@@ -58,7 +58,7 @@ func main() {
 	// This handler establishes a text/event-stream connection for a user identified by {id}
 	// and continuously streams timeline updates, including new posts or deletions from followed users.
 	mux.HandleFunc("GET /api/{id}/sse", func(w http.ResponseWriter, r *http.Request) {
-		handlers.SseTimeline(w, r, getUserAndFolloweePostsUsecase, &mu, &userChannels)
+		handlers.SseTimeline(w, r, getUserAndFolloweePostsUsecase, &mu, &userChannels, IsBench)
 	})
 
 	// Register an endpoint for polling to fetch timeline updates.
@@ -73,7 +73,7 @@ func main() {
 	// This handler establishes a WebSocket connection for a user identified by {id}
 	// and streams timeline updates including new posts or deletions from followed users.
 	mux.HandleFunc("/api/{id}/ws", func(w http.ResponseWriter, r *http.Request) {
-		handlers.WebSocketTimeline(w, r, getUserAndFolloweePostsUsecase, &mu, &userChannels)
+		handlers.WebSocketTimeline(w, r, getUserAndFolloweePostsUsecase, &mu, &userChannels, IsBench)
 	})
 
 	handlersWithCORS := middlewares.CORS(mux)
@@ -84,7 +84,7 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
-	timelinegrpc.RegisterTimelineServiceServer(s, server.NewGrpcServer(getUserAndFolloweePostsUsecase, &mu, &userChannels))
+	timelinegrpc.RegisterTimelineServiceServer(s, server.NewGrpcServer(getUserAndFolloweePostsUsecase, &mu, &userChannels, IsBench))
 
 	// Start the gRPC server in a separate goroutine.
 	go func() {

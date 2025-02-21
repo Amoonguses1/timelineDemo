@@ -7,6 +7,8 @@ services:
     ports:
       - 80:80
       - 8081:8081
+    volumes:
+      - ./app:/go/src/app
     networks:
       - app-network
 

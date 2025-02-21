@@ -90,7 +90,7 @@ func (s *HandlersTestSuite) TestSseTimeline() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			SseTimeline(rr, req, s.getUserAndFolloweePostsUsecase, &s.mu, &s.userChannels)
+			SseTimeline(rr, req, s.getUserAndFolloweePostsUsecase, &s.mu, &s.userChannels, false)
 		}()
 
 		if test.name == "get posts already posted and posts posted during timeline access" {

@@ -2,11 +2,13 @@ package sse
 
 import (
 	"benchmark/connector"
+	fileio "benchmark/fileIO"
 	"bufio"
 	"fmt"
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -22,6 +24,7 @@ func (conn *SSEConnector) Connect(userID uuid.UUID, wg *sync.WaitGroup, connecte
 	defer wg.Done()
 
 	// send request
+	fileio.WriteNewText("SSEBenchLogs.txt", fmt.Sprintf("request send\n%s: %v\n", userID.String()[:7], time.Now()))
 	url := fmt.Sprintf("http://localhost:80/api/%s/sse", userID.String())
 	resp, err := http.Get(url)
 	if err != nil {
@@ -35,6 +38,7 @@ func (conn *SSEConnector) Connect(userID uuid.UUID, wg *sync.WaitGroup, connecte
 	// read response
 	scanner := bufio.NewScanner(resp.Body)
 	for scanner.Scan() {
+		fileio.WriteNewText("SSEBenchLogs.txt", fmt.Sprintf("response received\n%s: %v\n", userID.String()[:7], time.Now()))
 		text := scanner.Text()
 		if strings.Contains(text, "end") {
 			return

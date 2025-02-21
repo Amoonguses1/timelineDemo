@@ -10,6 +10,7 @@ import (
 	"time"
 	usecases "timelineDemo/internal/app/usecases"
 	"timelineDemo/internal/domain/entities"
+	fileio "timelineDemo/internal/infrastructure/fileIO"
 
 	"github.com/google/uuid"
 )
@@ -64,12 +65,15 @@ func CreatePost(w http.ResponseWriter, r *http.Request, mu *sync.Mutex, usersCha
 	}
 }
 
-func SseTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUserAndFolloweePostsUsecaseInterface, mu *sync.Mutex, usersChan *map[uuid.UUID]chan entities.TimelineEvent) {
+func SseTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUserAndFolloweePostsUsecaseInterface, mu *sync.Mutex, usersChan *map[uuid.UUID]chan entities.TimelineEvent, isBench bool) {
 	log.Println("app-new sse connection called")
 	userID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		http.Error(w, fmt.Sprintln("invalid user id"), http.StatusBadRequest)
 		return
+	}
+	if isBench {
+		fileio.WriteNewText("SSEBenchLogs.txt", fmt.Sprintf("request comes\n%s: %v\n", userID.String()[:7], time.Now()))
 	}
 
 	posts, err := u.GetUserAndFolloweePosts(userID)
@@ -104,6 +108,9 @@ func SseTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUserAndFo
 			}
 
 			fmt.Fprintf(w, "data: %s\n\n", jsonData)
+			if isBench {
+				fileio.WriteNewText("SSEBenchLogs.txt", fmt.Sprintf("response send\n%s: %v\n", userID.String()[:7], time.Now()))
+			}
 			flusher.Flush()
 		case <-r.Context().Done():
 			mu.Lock()

@@ -1,11 +1,14 @@
 package handlers
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
+	"time"
 	usecases "timelineDemo/internal/app/usecases"
 	"timelineDemo/internal/domain/entities"
+	fileio "timelineDemo/internal/infrastructure/fileIO"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -19,7 +22,7 @@ var upgrader = websocket.Upgrader{
 // WebSocketTimeline is a websocket handler for timeline.
 // Keep the connection connected when a request is received and return posts.
 // While a connection is alive, return a response every time an event comes in.
-func WebSocketTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUserAndFolloweePostsUsecaseInterface, mu *sync.Mutex, usersChan *map[uuid.UUID]chan entities.TimelineEvent) {
+func WebSocketTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUserAndFolloweePostsUsecaseInterface, mu *sync.Mutex, usersChan *map[uuid.UUID]chan entities.TimelineEvent, isBench bool) {
 	// Extract and parse the user ID from the request path.
 	// If the ID is not a valid UUID, log the error and terminate the connection.
 	userID, err := uuid.Parse(r.PathValue("id"))
@@ -41,6 +44,9 @@ func WebSocketTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUse
 	}
 	defer ws.Close()
 	log.Println("Client Connected")
+	if isBench {
+		fileio.WriteNewText("WSBenchLogs.txt", fmt.Sprintf("request comes\n%s: %v\n", userID.String()[:7], time.Now()))
+	}
 
 	// Set up WebSocket Close flow.
 	ws.SetCloseHandler(func(code int, text string) error {
@@ -70,6 +76,9 @@ func WebSocketTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUse
 	mu.Unlock()
 
 	// Send the initial access response.
+	if isBench {
+		fileio.WriteNewText("WSBenchLogs.txt", fmt.Sprintf("response send\n%s: %v\n", userID.String()[:7], time.Now()))
+	}
 	err = ws.WriteJSON(entities.TimelineEvent{EventType: entities.TimelineAccessed, Posts: posts})
 	if err != nil {
 		log.Println("Failed to send the initial access response:", err)

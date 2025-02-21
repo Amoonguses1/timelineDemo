@@ -4,7 +4,9 @@ import (
 	"benchmark/connector"
 	"benchmark/connector/grpc/protogen/post"
 	"benchmark/connector/grpc/protogen/timeline"
+	fileio "benchmark/fileIO"
 	"context"
+	"fmt"
 	"log"
 	"strings"
 	"sync"
@@ -42,6 +44,7 @@ func (c *GRPCConnector) Connect(userID uuid.UUID, wg *sync.WaitGroup, connected 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	fileio.WriteNewText("gRPCBenchLogs.txt", fmt.Sprintf("request send\n%s: %v\n", userID.String()[:7], time.Now()))
 	stream, err := client.GetPosts(ctx, req)
 	if err != nil {
 		log.Fatalf("could not get posts: %v", err)
@@ -52,6 +55,7 @@ func (c *GRPCConnector) Connect(userID uuid.UUID, wg *sync.WaitGroup, connected 
 
 	for {
 		resp, err := stream.Recv()
+		fileio.WriteNewText("gRPCBenchLogs.txt", fmt.Sprintf("response received\n%s: %v\n", userID.String()[:7], time.Now()))
 		if err != nil {
 			log.Printf("stream end or error: %v", err)
 			break
