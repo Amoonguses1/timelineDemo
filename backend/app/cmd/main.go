@@ -33,6 +33,7 @@ func main() {
 	// Determine if the server should run in benchmark mode based on the command-line argument.
 	if len(os.Args) > 2 && os.Args[2] == "bench" {
 		IsBench = true
+		log.Println("Benchmark mode")
 	}
 
 	// Initialize usecases and repositories for managing posts.

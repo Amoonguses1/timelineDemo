@@ -45,7 +45,8 @@ func WebSocketTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUse
 	defer ws.Close()
 	log.Println("Client Connected")
 	if isBench {
-		fileio.WriteNewText("WSBenchLogs.txt", fmt.Sprintf("request comes\n%s: %v\n", userID.String()[:7], time.Now()))
+		timestamp := time.Now().Format("15:04:05.000")
+		fileio.WriteNewText("WSBenchLogs.txt", fmt.Sprintf("comes, %s, %s", userID.String()[:7], timestamp))
 	}
 
 	// Set up WebSocket Close flow.
@@ -76,9 +77,6 @@ func WebSocketTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUse
 	mu.Unlock()
 
 	// Send the initial access response.
-	if isBench {
-		fileio.WriteNewText("WSBenchLogs.txt", fmt.Sprintf("response send\n%s: %v\n", userID.String()[:7], time.Now()))
-	}
 	err = ws.WriteJSON(entities.TimelineEvent{EventType: entities.TimelineAccessed, Posts: posts})
 	if err != nil {
 		log.Println("Failed to send the initial access response:", err)
@@ -106,6 +104,10 @@ func WebSocketTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUse
 		select {
 		// Handle incoming timeline events and send them to the client.
 		case event := <-userChan:
+			if isBench {
+				timestamp := time.Now().Format("15:04:05.000")
+				fileio.WriteNewText("WSBenchLogs.txt", fmt.Sprintf("send, %s, %s", userID.String()[:7], timestamp))
+			}
 			err = ws.WriteJSON(event)
 			if err != nil {
 				log.Println("Failed to send the event notification:", err)

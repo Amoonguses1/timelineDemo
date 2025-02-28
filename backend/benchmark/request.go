@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -42,7 +41,7 @@ func sendRequestsBySingleUser(ctx context.Context, interval, totalRequests int, 
 	for i := 0; i < totalRequests; i++ {
 		select {
 		case <-ticker.C:
-			log.Println("Posted")
+			// log.Println("Posted")
 			err := createPost(userID, fmt.Sprintf("text no. %d", i))
 			if err != nil {
 				return

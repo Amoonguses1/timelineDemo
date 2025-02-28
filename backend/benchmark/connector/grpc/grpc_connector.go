@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/proto"
 )
 
 type GRPCConnector struct {
@@ -40,11 +41,20 @@ func (c *GRPCConnector) Connect(userID uuid.UUID, wg *sync.WaitGroup, connected 
 	client := timeline.NewTimelineServiceClient(conn)
 
 	req := &timeline.TimelineRequest{Id: userID.String()}
+	// measure request size
+	reqBytes, err := proto.Marshal(req)
+	if err != nil {
+		log.Printf("Failed to marshal request: %v", err)
+		return
+	}
+	reqSize := len(reqBytes)
+	fmt.Println("reqsize", reqSize)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	fileio.WriteNewText("gRPCBenchLogs.txt", fmt.Sprintf("request send\n%s: %v\n", userID.String()[:7], time.Now()))
+	timestamp := time.Now().UTC().Format("15:04:05.000")
+	fileio.WriteNewText("gRPCBenchLogs.txt", fmt.Sprintf("send, %s, %s", userID.String()[:7], timestamp))
 	stream, err := client.GetPosts(ctx, req)
 	if err != nil {
 		log.Fatalf("could not get posts: %v", err)
@@ -53,9 +63,23 @@ func (c *GRPCConnector) Connect(userID uuid.UUID, wg *sync.WaitGroup, connected 
 	// notification for connection established
 	connected <- struct{}{}
 
+	var totalRespSize int64
+
 	for {
 		resp, err := stream.Recv()
-		fileio.WriteNewText("gRPCBenchLogs.txt", fmt.Sprintf("response received\n%s: %v\n", userID.String()[:7], time.Now()))
+		if resp.EventType != timeline.Event_INITIAL_ACCESS {
+			// measure response size
+			respBytes, err := proto.Marshal(resp)
+			if err != nil {
+				log.Printf("Failed to marshal response: %v", err)
+				continue
+			}
+			respSize := len(respBytes)
+			totalRespSize += int64(respSize)
+
+			timestamp := time.Now().UTC().Format("15:04:05.000")
+			fileio.WriteNewText("gRPCBenchLogs.txt", fmt.Sprintf("comes, %s, %s", userID.String()[:7], timestamp))
+		}
 		if err != nil {
 			log.Printf("stream end or error: %v", err)
 			break
@@ -63,8 +87,9 @@ func (c *GRPCConnector) Connect(userID uuid.UUID, wg *sync.WaitGroup, connected 
 		if end(resp.Posts) {
 			break
 		}
-		log.Println("Response:", resp.Posts)
+		// log.Println("Response:", resp.Posts)
 	}
+	fmt.Println("total resp: ", totalRespSize)
 }
 
 func end(posts []*post.Post) bool {

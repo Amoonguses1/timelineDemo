@@ -24,7 +24,8 @@ func (conn *SSEConnector) Connect(userID uuid.UUID, wg *sync.WaitGroup, connecte
 	defer wg.Done()
 
 	// send request
-	fileio.WriteNewText("SSEBenchLogs.txt", fmt.Sprintf("request send\n%s: %v\n", userID.String()[:7], time.Now()))
+	timestamp := time.Now().UTC().Format("15:04:05.000")
+	fileio.WriteNewText("SSEBenchLogs.txt", fmt.Sprintf("send, %s, %s", userID.String()[:7], timestamp))
 	url := fmt.Sprintf("http://localhost:80/api/%s/sse", userID.String())
 	resp, err := http.Get(url)
 	if err != nil {
@@ -37,18 +38,26 @@ func (conn *SSEConnector) Connect(userID uuid.UUID, wg *sync.WaitGroup, connecte
 
 	// read response
 	scanner := bufio.NewScanner(resp.Body)
+	defer resp.Body.Close()
+
+	var responseSize int64
+
 	for scanner.Scan() {
-		fileio.WriteNewText("SSEBenchLogs.txt", fmt.Sprintf("response received\n%s: %v\n", userID.String()[:7], time.Now()))
+		// output response size
+		responseSize += int64(len(scanner.Bytes()))
 		text := scanner.Text()
+		if len(text) > 0 && !strings.Contains(text, "TimelineAccessed") {
+			timestamp := time.Now().UTC().Format("15:04:05.000")
+			fileio.WriteNewText("SSEBenchLogs.txt", fmt.Sprintf("comes, %s, %s", userID.String()[:7], timestamp))
+		}
 		if strings.Contains(text, "end") {
+			fmt.Println(responseSize)
 			return
 		}
-		fmt.Printf("User: %s received: %s\n", userID.String(), text)
+		// fmt.Printf("User: %s received: %s\n", userID.String(), text)
 	}
 
 	if err := scanner.Err(); err != nil {
 		fmt.Printf("Error reading for user %s: %v\n", userID.String(), err)
 	}
-
-	resp.Body.Close()
 }

@@ -73,7 +73,8 @@ func SseTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUserAndFo
 		return
 	}
 	if isBench {
-		fileio.WriteNewText("SSEBenchLogs.txt", fmt.Sprintf("request comes\n%s: %v\n", userID.String()[:7], time.Now()))
+		timestamp := time.Now().Format("15:04:05.000")
+		fileio.WriteNewText("SSEBenchLogs.txt", fmt.Sprintf("comes, %s, %s", userID.String()[:7], timestamp))
 	}
 
 	posts, err := u.GetUserAndFolloweePosts(userID)
@@ -89,13 +90,21 @@ func SseTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUserAndFo
 	userChan := (*usersChan)[userID]
 	mu.Unlock()
 
-	userChan <- entities.TimelineEvent{EventType: entities.TimelineAccessed, Posts: posts}
-
 	flusher, _ := w.(http.Flusher)
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	log.Println("header set")
+
+	// send initial response
+	jsonData, err := json.Marshal(entities.TimelineEvent{EventType: entities.TimelineAccessed, Posts: posts})
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	fmt.Fprintf(w, "data: %s\n\n", jsonData)
+	flusher.Flush()
 
 	for {
 		select {
@@ -109,10 +118,12 @@ func SseTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUserAndFo
 
 			fmt.Fprintf(w, "data: %s\n\n", jsonData)
 			if isBench {
-				fileio.WriteNewText("SSEBenchLogs.txt", fmt.Sprintf("response send\n%s: %v\n", userID.String()[:7], time.Now()))
+				timestamp := time.Now().Format("15:04:05.000")
+				fileio.WriteNewText("SSEBenchLogs.txt", fmt.Sprintf("send, %s, %s", userID.String()[:7], timestamp))
 			}
 			flusher.Flush()
 		case <-r.Context().Done():
+			log.Println("Connection closed")
 			mu.Lock()
 			delete(*usersChan, userID)
 			mu.Unlock()

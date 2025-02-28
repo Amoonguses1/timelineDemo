@@ -24,7 +24,8 @@ func (c *WebSocketConnector) Connect(userID uuid.UUID, wg *sync.WaitGroup, conne
 	defer wg.Done()
 
 	// connect to the WebSocket endpoint
-	fileio.WriteNewText("WSBenchLogs.txt", fmt.Sprintf("request send\n%s: %v\n", userID.String()[:7], time.Now()))
+	timestamp := time.Now().UTC().Format("15:04:05.000")
+	fileio.WriteNewText("WSBenchLogs.txt", fmt.Sprintf("send, %s, %s", userID.String()[:7], timestamp))
 	url := fmt.Sprintf("ws://localhost:80/api/%s/ws", userID.String())
 	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
 	if err != nil {
@@ -34,10 +35,15 @@ func (c *WebSocketConnector) Connect(userID uuid.UUID, wg *sync.WaitGroup, conne
 
 	// notification for connection established
 	connected <- struct{}{}
+	var receivedBytes int64
 
 	for {
 		_, message, err := conn.ReadMessage()
-		fileio.WriteNewText("WSBenchLogs.txt", fmt.Sprintf("response received\n%s: %v\n", userID.String()[:7], time.Now()))
+		receivedBytes += int64(len(message))
+		if !strings.Contains(string(message), "TimelineAccessed") {
+			timestamp := time.Now().UTC().Format("15:04:05.000")
+			fileio.WriteNewText("WSBenchLogs.txt", fmt.Sprintf("comes, %s, %s", userID.String()[:7], timestamp))
+		}
 
 		if err != nil {
 			log.Println("read:", err)
@@ -45,12 +51,14 @@ func (c *WebSocketConnector) Connect(userID uuid.UUID, wg *sync.WaitGroup, conne
 		}
 
 		if strings.Contains(string(message), "end") {
-			log.Println("Close connection")
+			// log.Println("Close connection")
 			CloseWebSocket(conn)
 			break
 		}
-		log.Printf("message: %s", message)
+		// log.Printf("message: %s", message)
 	}
+
+	fmt.Println(receivedBytes)
 }
 
 func CloseWebSocket(conn *websocket.Conn) {
@@ -61,7 +69,5 @@ func CloseWebSocket(conn *websocket.Conn) {
 
 	if err != nil {
 		log.Println("Failed to send close frame:", err)
-	} else {
-		log.Println("Close frame sent")
 	}
 }

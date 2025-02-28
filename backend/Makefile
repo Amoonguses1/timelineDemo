@@ -21,3 +21,7 @@ stop:
 bench:
 	make down
 	MODE=bench docker-compose up -d
+
+
+analysis:
+	go run analysis.go

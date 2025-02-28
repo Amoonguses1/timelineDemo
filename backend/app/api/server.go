@@ -37,7 +37,8 @@ func (s *GrpcServer) GetPosts(req *timelinegrpc.TimelineRequest, stream timeline
 		return err
 	}
 	if s.isBench {
-		fileio.WriteNewText("gRPCBenchLogs.txt", fmt.Sprintf("request comes\n%s: %v\n", userID.String()[:7], time.Now()))
+		timestamp := time.Now().Format("15:04:05.000")
+		fileio.WriteNewText("gRPCBenchLogs.txt", fmt.Sprintf("comes, %s, %s", userID.String()[:7], timestamp))
 	}
 
 	posts, err := s.u.GetUserAndFolloweePosts(userID)
@@ -54,7 +55,14 @@ func (s *GrpcServer) GetPosts(req *timelinegrpc.TimelineRequest, stream timeline
 	s.mu.Unlock()
 	ctx := stream.Context()
 
-	userChan <- entities.TimelineEvent{EventType: entities.TimelineAccessed, Posts: posts}
+	response, err := convertToTimelineResponse(entities.TimelineEvent{EventType: entities.TimelineAccessed, Posts: posts})
+	if err != nil {
+		err = status.Error(codes.Internal, "failed to convert posts")
+		return err
+	}
+	if err = stream.Send(response); err != nil {
+		return err
+	}
 
 	for {
 		select {
@@ -66,7 +74,8 @@ func (s *GrpcServer) GetPosts(req *timelinegrpc.TimelineRequest, stream timeline
 				return err
 			}
 			if s.isBench {
-				fileio.WriteNewText("gRPCBenchLogs.txt", fmt.Sprintf("response send\n%s: %v\n", userID.String()[:7], time.Now()))
+				timestamp := time.Now().Format("15:04:05.000")
+				fileio.WriteNewText("gRPCBenchLogs.txt", fmt.Sprintf("send, %s, %s", userID.String()[:7], timestamp))
 			}
 			if err = stream.Send(response); err != nil {
 				return err
