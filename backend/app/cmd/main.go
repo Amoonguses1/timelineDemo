@@ -62,14 +62,6 @@ func main() {
 		handlers.SseTimeline(w, r, getUserAndFolloweePostsUsecase, &mu, &userChannels, IsBench)
 	})
 
-	// Register an endpoint for polling to fetch timeline updates.
-	// This handler supports two types of requests:
-	// 1. Initial access request to fetch existing timeline data.
-	// 2. Long polling request that waits for new updates before responding.
-	mux.HandleFunc("GET /api/{id}/polling", func(w http.ResponseWriter, r *http.Request) {
-		handlers.LongPollingTimeline(w, r, getUserAndFolloweePostsUsecase, &mu, &userChannels)
-	})
-
 	// Register a WebSocket endpoint to provide real-time timeline updates.
 	// This handler establishes a WebSocket connection for a user identified by {id}
 	// and streams timeline updates including new posts or deletions from followed users.
