@@ -67,6 +67,10 @@ func (c *GRPCConnector) Connect(userID uuid.UUID, wg *sync.WaitGroup, connected 
 
 	for {
 		resp, err := stream.Recv()
+		if err != nil {
+			log.Printf("stream end or error: %v", err)
+			break
+		}
 		if resp.EventType != timeline.Event_INITIAL_ACCESS {
 			// measure response size
 			respBytes, err := proto.Marshal(resp)
@@ -79,10 +83,6 @@ func (c *GRPCConnector) Connect(userID uuid.UUID, wg *sync.WaitGroup, connected 
 
 			timestamp := time.Now().UTC().Format("15:04:05.000")
 			fileio.WriteNewText("gRPCBenchLogs.txt", fmt.Sprintf("comes, %s, %s", userID.String()[:7], timestamp))
-		}
-		if err != nil {
-			log.Printf("stream end or error: %v", err)
-			break
 		}
 		if end(resp.Posts) {
 			break
