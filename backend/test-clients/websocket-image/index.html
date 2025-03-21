@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WebSocket 画像受信</title>
+    <title>WebSocket image Receive</title>
   </head>
   <body>
-    <h2>WebSocket 画像受信テスト</h2>
-    <input type="text" id="filename" placeholder="ファイル名を入力" />
-    <button onclick="sendFileRequest()">画像リクエスト</button>
+    <h2>WebSocket Image Receive Test</h2>
+    <input type="text" id="filename" placeholder="input file name" />
+    <button onclick="sendFileRequest()">image request</button>
     <br /><br />
     <img id="imageDisplay" style="max-width: 500px; border: 1px solid black" />
 
@@ -19,16 +19,15 @@
       socket.binaryType = 'arraybuffer';
 
       socket.onopen = () => {
-        console.log('WebSocket 接続成功！');
+        console.log('WebSocket connecteed');
       };
 
       socket.onmessage = (event) => {
         if (event.data instanceof ArrayBuffer) {
-          console.log('画像チャンクを受信しました');
           const chunk = new Uint8Array(event.data);
-          receivedChunks.push(chunk); // チャンクを配列に追加
+          receivedChunks.push(chunk);
 
-          // 受信した全てのチャンクを結合して画像を作成
+          // Combine all received chunks to create an image
           const totalSize = receivedChunks.reduce(
             (sum, chunk) => sum + chunk.length,
             0
@@ -41,31 +40,29 @@
             offset += receivedChunks[i].length;
           }
 
-          // Blob に変換して画像を表示
+          // display images
           const blob = new Blob([combined], { type: 'image/png' });
           const objectURL = URL.createObjectURL(blob);
           document.getElementById('imageDisplay').src = objectURL;
-        } else {
-          console.log('テキストメッセージ:', event.data);
         }
       };
 
       socket.onerror = (error) => {
-        console.error('WebSocket エラー:', error);
+        console.error('WebSocket error:', error);
       };
 
       socket.onclose = () => {
-        console.log('WebSocket 接続が閉じられました');
+        console.log('WebSocket connection closed');
       };
 
       function sendFileRequest() {
         const filename = document.getElementById('filename').value;
         if (!filename) {
-          alert('ファイル名を入力してください！');
+          alert('input file name');
           return;
         }
-        socket.send(filename); // ファイル名を WebSocket サーバーに送信
-        console.log(`ファイルリクエスト送信: ${filename}`);
+        socket.send(filename);
+        console.log(`Send file request: ${filename}`);
       }
     </script>
   </body>

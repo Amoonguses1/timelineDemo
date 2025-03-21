@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -151,7 +152,6 @@ func WebSocketDisplayImage(w http.ResponseWriter, r *http.Request) {
 		log.Println("WebSocket upgrade failed:", err)
 	}
 	defer ws.Close()
-	log.Println("Client Connected")
 
 	// Set up WebSocket Close flow.
 	ws.SetCloseHandler(func(code int, text string) error {
@@ -166,8 +166,7 @@ func WebSocketDisplayImage(w http.ResponseWriter, r *http.Request) {
 			log.Println(err)
 			return
 		}
-		fileName := string(message)
-		filePath := filepath.Join(baseDir, filepath.Clean(fileName))
+		filePath := filepath.Join(baseDir, filepath.Clean(string(message)))
 
 		imgFile, err := os.Open(filePath)
 		if err != nil {
@@ -178,23 +177,22 @@ func WebSocketDisplayImage(w http.ResponseWriter, r *http.Request) {
 
 		buffer := make([]byte, chunkSize)
 
+		// Split the amount of data sent in image files to match the websocket buffer size limit.
 		for {
 			n, err := imgFile.Read(buffer)
 			if err != nil {
-				if err == io.EOF {
-					break // ファイルの終端
+				if errors.Is(err, io.EOF) {
+					break
 				}
 				log.Println("File read error:", err)
 				return
 			}
-			// 読み込んだデータを WebSocket で送信
+
 			err = ws.WriteMessage(websocket.BinaryMessage, buffer[:n])
 			if err != nil {
 				log.Println("Failed to send chunk:", err)
 				return
 			}
 		}
-
-		log.Println("File sent successfully.")
 	}
 }
