@@ -1,4 +1,4 @@
-APP_SERVER_NAME=timeline_demo_app
+APP_SERVER_NAME=app-new
 
 build:
 	make down

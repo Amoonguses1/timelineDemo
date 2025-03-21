@@ -3,8 +3,11 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 	usecases "timelineDemo/internal/app/usecases"
@@ -13,6 +16,8 @@ import (
 
 	"github.com/google/uuid"
 )
+
+const baseDir = "./images/"
 
 func CreatePost(w http.ResponseWriter, r *http.Request, mu *sync.Mutex, usersChan *map[uuid.UUID]chan entities.TimelineEvent, createPostUsecase usecases.CreatePostUsecaseInterface) {
 	var body createPostRequestBody
@@ -124,4 +129,25 @@ func SseTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUserAndFo
 			return
 		}
 	}
+}
+
+func DisPlayImage(w http.ResponseWriter, r *http.Request) {
+	fileName := r.URL.Query().Get("file")
+	if fileName == "" {
+		http.Error(w, "Missing file parameter", http.StatusBadRequest)
+		return
+	}
+
+	filePath := filepath.Join(baseDir, filepath.Clean(fileName))
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		http.Error(w, "Failed to open file", http.StatusInternalServerError)
+		return
+	}
+	defer file.Close()
+
+	w.Header().Set("Content-Type", "image/png")
+
+	io.Copy(w, file)
 }
