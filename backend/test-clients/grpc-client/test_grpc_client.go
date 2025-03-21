@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	timeline "testGrpcTestClient/grpc/protogen/timeline"
@@ -55,6 +56,36 @@ func main() {
 		}
 		log.Printf("Response: %v", resp)
 	}
+
+	imageReq := &timeline.ImageRequest{FileNames: []string{"Go-Logo_Aqua.png"}}
+	imageCtx, imageCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer imageCancel()
+	imageStream, err := client.GetImages(imageCtx, imageReq)
+	if err != nil {
+		log.Fatalf("Error calling GetImages: %v", err)
+	}
+
+	outFile, err := os.Create("received_Go-Logo_Aqua.png")
+	if err != nil {
+		log.Fatalf("Failed to create output file: %v", err)
+	}
+	defer outFile.Close()
+
+	for {
+		resp, err := imageStream.Recv()
+		if err != nil {
+			log.Printf("Stream closed: %v", err)
+			break
+		}
+
+		_, err = outFile.Write(resp.Chunk.Data)
+		if err != nil {
+			log.Fatalf("Failed to write chunk: %v", err)
+		}
+		log.Printf("Write chunk: %d\n", resp.Chunk.Position)
+	}
+
+	log.Println("File received successfully: received_Go-Logo_Aqua.png")
 }
 
 type createPostRequestBody struct {

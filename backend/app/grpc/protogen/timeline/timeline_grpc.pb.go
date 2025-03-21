@@ -23,6 +23,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TimelineServiceClient interface {
 	GetPosts(ctx context.Context, in *TimelineRequest, opts ...grpc.CallOption) (TimelineService_GetPostsClient, error)
+	GetImages(ctx context.Context, in *ImageRequest, opts ...grpc.CallOption) (TimelineService_GetImagesClient, error)
 }
 
 type timelineServiceClient struct {
@@ -65,11 +66,44 @@ func (x *timelineServiceGetPostsClient) Recv() (*TimelineResponse, error) {
 	return m, nil
 }
 
+func (c *timelineServiceClient) GetImages(ctx context.Context, in *ImageRequest, opts ...grpc.CallOption) (TimelineService_GetImagesClient, error) {
+	stream, err := c.cc.NewStream(ctx, &TimelineService_ServiceDesc.Streams[1], "/TimelineService/GetImages", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &timelineServiceGetImagesClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type TimelineService_GetImagesClient interface {
+	Recv() (*ImageResponse, error)
+	grpc.ClientStream
+}
+
+type timelineServiceGetImagesClient struct {
+	grpc.ClientStream
+}
+
+func (x *timelineServiceGetImagesClient) Recv() (*ImageResponse, error) {
+	m := new(ImageResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // TimelineServiceServer is the server API for TimelineService service.
 // All implementations must embed UnimplementedTimelineServiceServer
 // for forward compatibility
 type TimelineServiceServer interface {
 	GetPosts(*TimelineRequest, TimelineService_GetPostsServer) error
+	GetImages(*ImageRequest, TimelineService_GetImagesServer) error
 	mustEmbedUnimplementedTimelineServiceServer()
 }
 
@@ -79,6 +113,9 @@ type UnimplementedTimelineServiceServer struct {
 
 func (UnimplementedTimelineServiceServer) GetPosts(*TimelineRequest, TimelineService_GetPostsServer) error {
 	return status.Errorf(codes.Unimplemented, "method GetPosts not implemented")
+}
+func (UnimplementedTimelineServiceServer) GetImages(*ImageRequest, TimelineService_GetImagesServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetImages not implemented")
 }
 func (UnimplementedTimelineServiceServer) mustEmbedUnimplementedTimelineServiceServer() {}
 
@@ -114,6 +151,27 @@ func (x *timelineServiceGetPostsServer) Send(m *TimelineResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
+func _TimelineService_GetImages_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ImageRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(TimelineServiceServer).GetImages(m, &timelineServiceGetImagesServer{stream})
+}
+
+type TimelineService_GetImagesServer interface {
+	Send(*ImageResponse) error
+	grpc.ServerStream
+}
+
+type timelineServiceGetImagesServer struct {
+	grpc.ServerStream
+}
+
+func (x *timelineServiceGetImagesServer) Send(m *ImageResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // TimelineService_ServiceDesc is the grpc.ServiceDesc for TimelineService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -125,6 +183,11 @@ var TimelineService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "GetPosts",
 			Handler:       _TimelineService_GetPosts_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "GetImages",
+			Handler:       _TimelineService_GetImages_Handler,
 			ServerStreams: true,
 		},
 	},

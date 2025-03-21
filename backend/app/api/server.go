@@ -2,9 +2,13 @@ package server
 
 import (
 	"fmt"
+	"io"
 	"log"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
+	"timelineDemo/grpc/protogen/image"
 	"timelineDemo/grpc/protogen/post"
 	timelinegrpc "timelineDemo/grpc/protogen/timeline"
 	"timelineDemo/internal/app/usecases"
@@ -12,10 +16,13 @@ import (
 	fileio "timelineDemo/internal/infrastructure/fileIO"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+const baseDir = "./images/"
 
 func NewGrpcServer(u usecases.GetUserAndFolloweePostsUsecaseInterface, mu *sync.Mutex, usersChan *map[uuid.UUID]chan entities.TimelineEvent, isBench bool) *GrpcServer {
 	return &GrpcServer{u: u, mu: mu, usersChan: usersChan, isBench: isBench}
@@ -119,4 +126,42 @@ func convertToTimelineResponse(event entities.TimelineEvent) (*timelinegrpc.Time
 		EventType: eventType,
 		Posts:     posts,
 	}, nil
+}
+
+func (s *GrpcServer) GetImages(req *timelinegrpc.ImageRequest, stream timelinegrpc.TimelineService_GetImagesServer) error {
+	fileNames := req.GetFileNames()
+	buf := make([]byte, 1024)
+
+	for _, fileName := range fileNames {
+		filePath := filepath.Join(baseDir, filepath.Clean(fileName))
+		log.Println(filePath)
+
+		imgFile, err := os.Open(filePath)
+		if err != nil {
+			return err
+		}
+		defer imgFile.Close()
+
+		for {
+			pos, err := imgFile.Read(buf)
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				return err
+			}
+
+			if err := stream.Send(&timelinegrpc.ImageResponse{
+				FileName: fileName,
+				Chunk: &image.Chunk{
+					Data:     buf[:pos],
+					Position: int64(pos),
+				},
+			}); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
