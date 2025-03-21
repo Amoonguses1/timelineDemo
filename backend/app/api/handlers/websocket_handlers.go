@@ -2,8 +2,11 @@ package handlers
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 	usecases "timelineDemo/internal/app/usecases"
@@ -14,9 +17,11 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const chunkSize = 1024
+
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	ReadBufferSize:  chunkSize,
+	WriteBufferSize: chunkSize,
 }
 
 // WebSocketTimeline is a websocket handler for timeline.
@@ -130,5 +135,66 @@ func WebSocketTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUse
 			mu.Unlock()
 			return
 		}
+	}
+}
+
+func WebSocketDisplayImage(w http.ResponseWriter, r *http.Request) {
+	// checkOrigin sets the CORS configucation.
+	upgrader.CheckOrigin = func(r *http.Request) bool {
+		return true
+	}
+
+	// Upgrade the HTTP connection to a WebSocket connection.
+	// If the upgrade fails, log the error and terminate connection.
+	ws, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println("WebSocket upgrade failed:", err)
+	}
+	defer ws.Close()
+	log.Println("Client Connected")
+
+	// Set up WebSocket Close flow.
+	ws.SetCloseHandler(func(code int, text string) error {
+		log.Printf("WebSocket closed: Code=%d, Reason=%s", code, text)
+
+		return nil
+	})
+
+	for {
+		_, message, err := ws.ReadMessage()
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		fileName := string(message)
+		filePath := filepath.Join(baseDir, filepath.Clean(fileName))
+
+		imgFile, err := os.Open(filePath)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		defer imgFile.Close()
+
+		buffer := make([]byte, chunkSize)
+
+		for {
+			n, err := imgFile.Read(buffer)
+			if err != nil {
+				if err == io.EOF {
+					break // ファイルの終端
+				}
+				log.Println("File read error:", err)
+				return
+			}
+			// 読み込んだデータを WebSocket で送信
+			err = ws.WriteMessage(websocket.BinaryMessage, buffer[:n])
+			if err != nil {
+				log.Println("Failed to send chunk:", err)
+				return
+			}
+		}
+
+		log.Println("File sent successfully.")
 	}
 }

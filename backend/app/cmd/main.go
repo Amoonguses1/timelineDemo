@@ -69,6 +69,10 @@ func main() {
 		handlers.WebSocketTimeline(w, r, getUserAndFolloweePostsUsecase, &mu, &userChannels, IsBench)
 	})
 
+	mux.HandleFunc("/api/getimg/ws", func(w http.ResponseWriter, r *http.Request) {
+		handlers.WebSocketDisplayImage(w, r)
+	})
+
 	mux.HandleFunc("/api/getimg", func(w http.ResponseWriter, r *http.Request) {
 		handlers.DisPlayImage(w, r)
 	})
