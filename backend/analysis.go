@@ -2,15 +2,142 @@ package main
 
 import (
 	"bufio"
+	"encoding/csv"
 	"fmt"
 	"math"
 	"os"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
+
+	"image/color"
+
+	"gonum.org/v1/plot"
+	"gonum.org/v1/plot/plotter"
+	"gonum.org/v1/plot/vg"
 )
 
 var typeName = "WSBenchLogs"
+
+func statsAnalysis() {
+	data, err := parseStatsLog("./benchmark/stats.txt")
+	if err != nil {
+		fmt.Println("Error reading stats log:", err)
+		return
+	}
+
+	plotCPUStats(data)
+	plotMemoryStats(data)
+}
+
+type StatsData struct {
+	Time   float64
+	CPU    float64
+	Memory float64
+}
+
+func parseStatsLog(filename string) ([]StatsData, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	scanner := csv.NewReader(file)
+	scanner.FieldsPerRecord = -1
+
+	var data []StatsData
+	reCPU := regexp.MustCompile(`([0-9.]+)%`)
+	timeCounter := 0.0
+
+	lines, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	entries := strings.Split(string(lines), "\n")
+	for i := 1; i < len(entries); i += 2 {
+		fields := strings.Fields(entries[i])
+
+		cpuMatch := reCPU.FindStringSubmatch(fields[2])
+		if len(cpuMatch) < 2 {
+			continue
+		}
+		cpu, _ := strconv.ParseFloat(cpuMatch[1], 64)
+
+		memParts := strings.Fields(fields[3])
+		mem, _ := parseMemory(memParts[0])
+
+		data = append(data, StatsData{Time: timeCounter, CPU: cpu, Memory: mem})
+		timeCounter += 1
+	}
+
+	return data, nil
+}
+
+func parseMemory(memStr string) (float64, error) {
+	var unitMap = map[string]float64{
+		"KiB": 1, "MiB": 1024, "GiB": 1024 * 1024,
+	}
+	for unit, factor := range unitMap {
+		if strings.HasSuffix(memStr, unit) {
+			value, err := strconv.ParseFloat(strings.TrimSuffix(memStr, unit), 64)
+			if err != nil {
+				return 0, err
+			}
+			return value * factor, nil
+		}
+	}
+	return 0, fmt.Errorf("unknown unit: %s", memStr)
+}
+
+func plotCPUStats(data []StatsData) {
+	p := plot.New()
+	p.Title.Text = "CPU Usage Over Time"
+	p.X.Label.Text = "Time"
+	p.Y.Label.Text = "CPU (%)"
+
+	ptsCPU := make(plotter.XYs, len(data))
+
+	for i, d := range data {
+		ptsCPU[i].X = d.Time
+		ptsCPU[i].Y = d.CPU
+	}
+
+	lineCPU, _ := plotter.NewLine(ptsCPU)
+	lineCPU.Color = color.RGBA{R: 255, G: 0, B: 0, A: 255}
+	p.Add(lineCPU)
+	p.Legend.Add("CPU (%)", lineCPU)
+
+	if err := p.Save(8*vg.Inch, 4*vg.Inch, "cpu_usage.png"); err != nil {
+		fmt.Println("Error saving CPU plot:", err)
+	}
+}
+
+func plotMemoryStats(data []StatsData) {
+	p := plot.New()
+	p.Title.Text = "Memory Usage Over Time"
+	p.X.Label.Text = "Time"
+	p.Y.Label.Text = "Memory (MiB)"
+
+	ptsMem := make(plotter.XYs, len(data))
+
+	for i, d := range data {
+		ptsMem[i].X = d.Time
+		ptsMem[i].Y = d.Memory / 1024 // MiB 表示
+	}
+
+	lineMem, _ := plotter.NewLine(ptsMem)
+	lineMem.Color = color.RGBA{B: 255, A: 255}
+	p.Add(lineMem)
+	p.Legend.Add("Memory (MiB)", lineMem)
+
+	if err := p.Save(8*vg.Inch, 4*vg.Inch, "memory_usage.png"); err != nil {
+		fmt.Println("Error saving Memory plot:", err)
+	}
+}
 
 type LogEntry struct {
 	Event     string
@@ -54,7 +181,7 @@ func readLogFile(filename string) (map[string][]LogEntry, error) {
 	return logs, nil
 }
 
-func calculateLatency(clientLogs, serverLogs map[string][]LogEntry) {
+func calculateLatency(filename string, clientLogs, serverLogs map[string][]LogEntry) {
 	var clientToServerLatencies []time.Duration
 	var serverToClientLatencies []time.Duration
 
@@ -102,8 +229,8 @@ func calculateLatency(clientLogs, serverLogs map[string][]LogEntry) {
 	// 	fmt.Printf("%d: %s\n", i+1, latency)
 	// }
 
-	writeLatencyToFile("client_to_server_latency.txt", clientToServerLatencies)
-	writeLatencyToFile("server_to_client_latency.txt", serverToClientLatencies)
+	writeLatencyToFile(fmt.Sprintf("client_to_server_latency_%s.txt", filename), clientToServerLatencies)
+	writeLatencyToFile(fmt.Sprintf("server_to_client_latency_%s.txt", filename), serverToClientLatencies)
 }
 
 func writeLatencyToFile(filename string, latencies []time.Duration) {
@@ -166,5 +293,21 @@ func main() {
 		return
 	}
 
-	calculateLatency(clientLogs, serverLogs)
+	calculateLatency("post", clientLogs, serverLogs)
+
+	clientLogs, err = readLogFile(fmt.Sprintf("./benchmark/%sImage.txt", typeName))
+	if err != nil {
+		fmt.Println("Error reading client log:", err)
+		return
+	}
+
+	serverLogs, err = readLogFile(fmt.Sprintf("./app/%sImage.txt", typeName))
+	if err != nil {
+		fmt.Println("Error reading server log:", err)
+		return
+	}
+
+	calculateLatency("image", clientLogs, serverLogs)
+
+	statsAnalysis()
 }

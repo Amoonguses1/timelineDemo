@@ -9,4 +9,5 @@ const (
 type TimelineEvent struct {
 	EventType string
 	Posts     []*Post
+	ImagePath string
 }

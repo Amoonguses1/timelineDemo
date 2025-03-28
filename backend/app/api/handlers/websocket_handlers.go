@@ -47,6 +47,7 @@ func WebSocketTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUse
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println("WebSocket upgrade failed:", err)
+		return
 	}
 	defer ws.Close()
 	log.Println("Client Connected")
@@ -139,7 +140,13 @@ func WebSocketTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUse
 	}
 }
 
-func WebSocketDisplayImage(w http.ResponseWriter, r *http.Request) {
+func WebSocketDisplayImage(w http.ResponseWriter, r *http.Request, isBench bool) {
+	userID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		log.Println("Falied to parse userID:", err)
+		return
+	}
+
 	// checkOrigin sets the CORS configucation.
 	upgrader.CheckOrigin = func(r *http.Request) bool {
 		return true
@@ -150,8 +157,14 @@ func WebSocketDisplayImage(w http.ResponseWriter, r *http.Request) {
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println("WebSocket upgrade failed:", err)
+		return
 	}
 	defer ws.Close()
+
+	if isBench {
+		timestamp := time.Now().Format("15:04:05.000")
+		fileio.WriteNewText("WSBenchLogsImage.txt", fmt.Sprintf("comes, %s, %s", userID.String()[:7], timestamp))
+	}
 
 	// Set up WebSocket Close flow.
 	ws.SetCloseHandler(func(code int, text string) error {
@@ -160,39 +173,43 @@ func WebSocketDisplayImage(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 
+	_, message, err := ws.ReadMessage()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	filePath := filepath.Join(baseDir, filepath.Clean(string(message)))
+	log.Println(filePath)
+
+	imgFile, err := os.Open(filePath)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer imgFile.Close()
+
+	buffer := make([]byte, chunkSize)
+	if isBench {
+		timestamp := time.Now().Format("15:04:05.000")
+		fileio.WriteNewText("WSBenchLogsImage.txt", fmt.Sprintf("send, %s, %s", userID.String()[:7], timestamp))
+	}
+
+	// Split the amount of data sent in image files to match the websocket buffer size limit.
 	for {
-		_, message, err := ws.ReadMessage()
+		n, err := imgFile.Read(buffer)
 		if err != nil {
-			log.Println(err)
-			return
-		}
-		filePath := filepath.Join(baseDir, filepath.Clean(string(message)))
-
-		imgFile, err := os.Open(filePath)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-		defer imgFile.Close()
-
-		buffer := make([]byte, chunkSize)
-
-		// Split the amount of data sent in image files to match the websocket buffer size limit.
-		for {
-			n, err := imgFile.Read(buffer)
-			if err != nil {
-				if errors.Is(err, io.EOF) {
-					break
-				}
-				log.Println("File read error:", err)
+			if errors.Is(err, io.EOF) {
 				return
 			}
+			log.Println("File read error:", err)
+			return
+		}
 
-			err = ws.WriteMessage(websocket.BinaryMessage, buffer[:n])
-			if err != nil {
-				log.Println("Failed to send chunk:", err)
-				return
-			}
+		err = ws.WriteMessage(websocket.BinaryMessage, buffer[:n])
+		if err != nil {
+			log.Println("Failed to send chunk:", err)
+			return
 		}
 	}
+
 }

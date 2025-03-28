@@ -23,10 +23,12 @@ message TimelineRequest {
 message TimelineResponse {
     Event event_type = 1;
     repeated Post posts = 2;
+    string image_path = 3;
 }
 
 message ImageRequest {
-    repeated string file_names = 1;
+    string id = 1;
+    repeated string file_names = 2;
 }
 
 message ImageResponse {

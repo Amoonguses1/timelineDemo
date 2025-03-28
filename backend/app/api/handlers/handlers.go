@@ -18,6 +18,7 @@ import (
 )
 
 const baseDir = "./images/"
+const testImage = "test.png"
 
 func CreatePost(w http.ResponseWriter, r *http.Request, mu *sync.Mutex, usersChan *map[uuid.UUID]chan entities.TimelineEvent, createPostUsecase usecases.CreatePostUsecaseInterface) {
 	var body createPostRequestBody
@@ -48,7 +49,7 @@ func CreatePost(w http.ResponseWriter, r *http.Request, mu *sync.Mutex, usersCha
 
 		mu.Lock()
 		for _, userChan := range *usersChan {
-			userChan <- entities.TimelineEvent{EventType: entities.PostCreated, Posts: posts}
+			userChan <- entities.TimelineEvent{EventType: entities.PostCreated, Posts: posts, ImagePath: testImage}
 		}
 		mu.Unlock()
 	}(usersChan)
@@ -131,7 +132,17 @@ func SseTimeline(w http.ResponseWriter, r *http.Request, u usecases.GetUserAndFo
 	}
 }
 
-func DisPlayImage(w http.ResponseWriter, r *http.Request) {
+func DisPlayImage(w http.ResponseWriter, r *http.Request, isBench bool) {
+	userID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		http.Error(w, fmt.Sprintln("invalid user id"), http.StatusBadRequest)
+		return
+	}
+	if isBench {
+		timestamp := time.Now().Format("15:04:05.000")
+		fileio.WriteNewText("SSEBenchLogsImage.txt", fmt.Sprintf("comes, %s, %s", userID.String()[:7], timestamp))
+	}
+
 	fileName := r.URL.Query().Get("file")
 	if fileName == "" {
 		http.Error(w, "Missing file parameter", http.StatusBadRequest)
@@ -149,5 +160,9 @@ func DisPlayImage(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "image/png")
 
+	if isBench {
+		timestamp := time.Now().Format("15:04:05.000")
+		fileio.WriteNewText("SSEBenchLogsImage.txt", fmt.Sprintf("send, %s, %s", userID.String()[:7], timestamp))
+	}
 	io.Copy(w, file)
 }

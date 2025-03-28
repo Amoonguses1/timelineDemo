@@ -12,7 +12,7 @@ clean:
 protoc:
 	protoc --go_opt=module=${GO_MODULE} --go_out=. \
 		--go-grpc_opt=module=${GO_MODULE} --go-grpc_out=. \
-		./proto/timeline/*.proto ./proto/post/*.proto
+		./proto/timeline/*.proto ./proto/post/*.proto ./proto/image/*.proto
 
 .PHONY: build
 build: clean protoc tidy

@@ -6,7 +6,9 @@ import (
 	"benchmark/connector/grpc/protogen/timeline"
 	fileio "benchmark/fileIO"
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"strings"
 	"sync"
@@ -50,7 +52,7 @@ func (c *GRPCConnector) Connect(userID uuid.UUID, wg *sync.WaitGroup, connected 
 	reqSize := len(reqBytes)
 	fmt.Println("reqsize", reqSize)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	timestamp := time.Now().UTC().Format("15:04:05.000")
@@ -64,6 +66,7 @@ func (c *GRPCConnector) Connect(userID uuid.UUID, wg *sync.WaitGroup, connected 
 	connected <- struct{}{}
 
 	var totalRespSize int64
+	var imageWg sync.WaitGroup
 
 	for {
 		resp, err := stream.Recv()
@@ -83,13 +86,17 @@ func (c *GRPCConnector) Connect(userID uuid.UUID, wg *sync.WaitGroup, connected 
 
 			timestamp := time.Now().UTC().Format("15:04:05.000")
 			fileio.WriteNewText("gRPCBenchLogs.txt", fmt.Sprintf("comes, %s, %s", userID.String()[:7], timestamp))
+			imageWg.Add(1)
+			go getImage(&imageWg, userID, resp.ImagePath, client)
 		}
 		if end(resp.Posts) {
 			break
 		}
 		// log.Println("Response:", resp.Posts)
 	}
-	fmt.Println("total resp: ", totalRespSize)
+
+	imageWg.Wait()
+	// fmt.Println("total resp: ", totalRespSize)
 }
 
 func end(posts []*post.Post) bool {
@@ -99,4 +106,45 @@ func end(posts []*post.Post) bool {
 		}
 	}
 	return false
+}
+
+func getImage(wg *sync.WaitGroup, userID uuid.UUID, imagePath string, client timeline.TimelineServiceClient) {
+	defer wg.Done()
+
+	imageReq := &timeline.ImageRequest{Id: userID.String(), FileNames: []string{imagePath}}
+	imageCtx, imageCancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer imageCancel()
+
+	timestamp := time.Now().UTC().Format("15:04:05.000")
+	fileio.WriteNewText("gRPCBenchLogsImage.txt", fmt.Sprintf("send, %s, %s", userID.String()[:7], timestamp))
+	imageStream, err := client.GetImages(imageCtx, imageReq)
+	if err != nil {
+		log.Fatalf("Error calling GetImages: %v", err)
+	}
+
+	// var buf []byte
+	var totalRespSize int64
+	for {
+		resp, err := imageStream.Recv()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			log.Printf("unknown error: %v", err)
+			return
+		}
+
+		// measure response size
+		respBytes, err := proto.Marshal(resp)
+		if err != nil {
+			log.Printf("Failed to marshal response: %v", err)
+			continue
+		}
+		respSize := len(respBytes)
+		totalRespSize += int64(respSize)
+	}
+
+	timestamp = time.Now().UTC().Format("15:04:05.000")
+	fileio.WriteNewText("gRPCBenchLogsImage.txt", fmt.Sprintf("comes, %s, %s", userID.String()[:7], timestamp))
+	log.Printf("image resp size: %d", totalRespSize)
 }

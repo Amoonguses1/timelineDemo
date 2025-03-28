@@ -69,12 +69,12 @@ func main() {
 		handlers.WebSocketTimeline(w, r, getUserAndFolloweePostsUsecase, &mu, &userChannels, IsBench)
 	})
 
-	mux.HandleFunc("/api/getimg/ws", func(w http.ResponseWriter, r *http.Request) {
-		handlers.WebSocketDisplayImage(w, r)
+	mux.HandleFunc("/api/{id}/getimg/ws", func(w http.ResponseWriter, r *http.Request) {
+		handlers.WebSocketDisplayImage(w, r, IsBench)
 	})
 
-	mux.HandleFunc("/api/getimg", func(w http.ResponseWriter, r *http.Request) {
-		handlers.DisPlayImage(w, r)
+	mux.HandleFunc("/api/{id}/getimg", func(w http.ResponseWriter, r *http.Request) {
+		handlers.DisPlayImage(w, r, IsBench)
 	})
 
 	handlersWithCORS := middlewares.CORS(mux)

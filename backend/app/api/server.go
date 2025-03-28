@@ -125,10 +125,22 @@ func convertToTimelineResponse(event entities.TimelineEvent) (*timelinegrpc.Time
 	return &timelinegrpc.TimelineResponse{
 		EventType: eventType,
 		Posts:     posts,
+		ImagePath: event.ImagePath,
 	}, nil
 }
 
 func (s *GrpcServer) GetImages(req *timelinegrpc.ImageRequest, stream timelinegrpc.TimelineService_GetImagesServer) error {
+	userID, err := uuid.Parse(req.GetId())
+	if err != nil {
+		err = status.Error(codes.InvalidArgument, "failed to parse user id")
+		return err
+	}
+
+	if s.isBench {
+		timestamp := time.Now().Format("15:04:05.000")
+		fileio.WriteNewText("gRPCBenchLogsImage.txt", fmt.Sprintf("comes, %s, %s", userID.String()[:7], timestamp))
+	}
+
 	fileNames := req.GetFileNames()
 	buf := make([]byte, 1024)
 
@@ -141,6 +153,11 @@ func (s *GrpcServer) GetImages(req *timelinegrpc.ImageRequest, stream timelinegr
 			return err
 		}
 		defer imgFile.Close()
+
+		if s.isBench {
+			timestamp := time.Now().Format("15:04:05.000")
+			fileio.WriteNewText("gRPCBenchLogsImage.txt", fmt.Sprintf("send, %s, %s", userID.String()[:7], timestamp))
+		}
 
 		for {
 			pos, err := imgFile.Read(buf)
@@ -161,6 +178,7 @@ func (s *GrpcServer) GetImages(req *timelinegrpc.ImageRequest, stream timelinegr
 				return err
 			}
 		}
+
 	}
 
 	return nil
